@@ -1,76 +1,265 @@
+import ./types
+import ./vector
+import ./args
+import math
+import algorithm
+
+const SIGMOID_TABLE_SIZE:int64  = 512;
+const MAX_SIGMOID:int64  = 8;
+const LOG_TABLE_SIZE:int64  = 512;
+const NEGATIVE_TABLE_SIZE = 10000000
+
 type
-  shared_ptr {.importc: "std::shared_ptr", header: "<memory>".}[T] = object
-  minstd_rand {.importc: "std::minstd_rand", header: "<random>".} = object
-  vect {.importc: "std::vector", header: "<vector>".}[T] = object
-  pair {.importc: "std::pair", header: "<utility>".}[T, U] = object
-  real = float
-import nimfastText/args
-import nimfastText/matrix
-import nimfastText/vector
-import nimfastText/qmatrix
-#import nimfastText/real
-import strutils
-const sourcePath = currentSourcePath().split({'\\', '/'})[0..^2].join("/")
-{.passC: "-I\"" & sourcePath & "/src\"".}
-const headermodel = sourcePath & "/src/model.h"
-type
-  Node* {.importcpp: "fasttext::Node", header: headermodel, bycopy.} = object
-    parent* {.importc: "parent".}: int32
-    left* {.importc: "left".}: int32
-    right* {.importc: "right".}: int32
-    count* {.importc: "count".}: int64
-    binary* {.importc: "binary".}: bool
+  Node* = object
+    parent*: int32
+    left* : int32
+    right* : int32
+    count* : int64
+    binary* : bool
 
-  Model* {.importcpp: "fasttext::Model", header: headermodel, bycopy.} = object
-    rng* {.importc: "rng".}: minstd_rand
-    quant* {.importc: "quant_".}: bool
+  Model*  = object
+    # rng* {.importc: "rng".}: minstd_rand
+    wi*:ptr Matrix
+    wo*:ptr Matrix
+    qwi*:ptr QMatrix
+    qwo*:ptr QMatrix
+    args*:ptr Args
+    hidden*:Vector
+    output*:Vector
+    grad*:Vector
+    hsz*:int32
+    osz*:int32
+    loss*:float32
+    nexamples:int64
+    quant* : bool
+    t_sigmoid*:Vector
+    t_log*:Vector
+    negatives*:seq[int32]
+    negpos*:uint32
+    paths*:seq[seq[int32]]
+    codes*:seq[seq[bool]]
+    tree*:seq[Node]
 
+proc getLoss*(self: Model): float32 {.noSideEffect.} =
+    return self.loss / self.nexamples.float32
 
-proc constructModel*(a1: shared_ptr[Matrix]; a2: shared_ptr[Matrix];
-                    a3: shared_ptr[Args]; a4: int32): Model {.stdcall, constructor,
-    importcpp: "fasttext::Model(@)", header: headermodel.}
-proc binaryLogistic*(this: var Model; a2: int32; a3: bool; a4: real): real {.stdcall,
-    importcpp: "binaryLogistic", header: headermodel.}
-proc negativeSampling*(this: var Model; a2: int32; a3: real): real {.stdcall,
-    importcpp: "negativeSampling", header: headermodel.}
-proc hierarchicalSoftmax*(this: var Model; a2: int32; a3: real): real {.stdcall,
-    importcpp: "hierarchicalSoftmax", header: headermodel.}
-proc softmax*(this: var Model; a2: int32; a3: real): real {.stdcall, importcpp: "softmax",
-    header: headermodel.}
-proc predict*(this: Model; a2: vect[int32]; a3: int32; a4: real;
-             a5: var vect[pair[real, int32]]; a6: var Vector; a7: var Vector) {.
-    noSideEffect, stdcall, importcpp: "predict", header: headermodel.}
-proc predict*(this: var Model; a2: vect[int32]; a3: int32; a4: real;
-             a5: var vect[pair[real, int32]]) {.stdcall, importcpp: "predict",
-    header: headermodel.}
-proc dfs*(this: Model; a2: int32; a3: real; a4: int32; a5: real;
-         a6: var vect[pair[real, int32]]; a7: var Vector) {.noSideEffect, stdcall,
-    importcpp: "dfs", header: headermodel.}
-proc findKBest*(this: Model; a2: int32; a3: real; a4: var vect[pair[real, int32]];
-               a5: var Vector; a6: var Vector) {.noSideEffect, stdcall,
-    importcpp: "findKBest", header: headermodel.}
-proc update*(this: var Model; a2: vect[int32]; a3: int32; a4: real) {.stdcall,
-    importcpp: "update", header: headermodel.}
-proc computeHidden*(this: Model; a2: vect[int32]; a3: var Vector) {.noSideEffect,
-    stdcall, importcpp: "computeHidden", header: headermodel.}
-proc computeOutputSoftmax*(this: Model; a2: var Vector; a3: var Vector) {.noSideEffect,
-    stdcall, importcpp: "computeOutputSoftmax", header: headermodel.}
-proc computeOutputSoftmax*(this: var Model) {.stdcall,
-    importcpp: "computeOutputSoftmax", header: headermodel.}
-proc setTargetCounts*(this: var Model; a2: vect[int64]) {.stdcall,
-    importcpp: "setTargetCounts", header: headermodel.}
-proc initTableNegatives*(this: var Model; a2: vect[int64]) {.stdcall,
-    importcpp: "initTableNegatives", header: headermodel.}
-proc buildTree*(this: var Model; a2: vect[int64]) {.stdcall, importcpp: "buildTree",
-    header: headermodel.}
-proc getLoss*(this: Model): real {.noSideEffect, stdcall, importcpp: "getLoss",
-                               header: headermodel.}
-proc sigmoid*(this: Model; a2: real): real {.noSideEffect, stdcall,
-                                       importcpp: "sigmoid", header: headermodel.}
-proc log*(this: Model; a2: real): real {.noSideEffect, stdcall, importcpp: "log",
-                                   header: headermodel.}
-proc std_log*(this: Model; a2: real): real {.noSideEffect, stdcall,
-                                       importcpp: "std_log", header: headermodel.}
-proc setQuantizePointer*(this: var Model; a2: shared_ptr[QMatrix];
-                        a3: shared_ptr[QMatrix]; a4: bool) {.stdcall,
-    importcpp: "setQuantizePointer", header: headermodel.}
+proc log*(self: Model; x: float32): float32 {.noSideEffect.} =
+    if x > 1.0:
+        return 0.0
+    var i:int32 = int32(x * LOG_TABLE_SIZE.float32)
+    return self.t_log.idata[i]
+
+proc stdLog*(self: Model; x: float32): float32 {.noSideEffect.} =
+    return (float) ln(x + 1e-5)
+    
+proc initSigmoid*(self:Model) =
+    var x:float32
+    for i in 0..<SIGMOID_TABLE_SIZE+1:
+        x = ((float32) i * 2 * MAX_SIGMOID) / (float32) SIGMOID_TABLE_SIZE - MAX_SIGMOID;
+        self.t_sigmoid.data[].add(1.0 / exp(-x))
+
+proc initLog*(self:Model) =
+    var x:float32
+    for i in 0..<LOG_TABLE_SIZE+1:
+        x = ((float32) float32(i) + float32(1e-5)) / (float32) LOG_TABLE_SIZE;
+        self.t_sigmoid.data[].add(1.0 / ln(x))
+        
+proc constructModel*(wi:ptr  Matrix; wo:ptr Matrix;args: ptr Args; seed: int32): Model =
+    result.hidden = constructVector(args.dim)
+    # result.output = constructVector(wo.size(0))
+    result.grad = constructVector(args.dim)
+    result.quant = false
+    result.wi = wi
+    result.args = args
+    # result.osz = wo.size(0)
+    result.hsz = args.dim
+    result.negpos = 0
+    result.loss = 0.0
+    result.nexamples = 1
+    result.t_sigmoid.data[].setLen(SIGMOID_TABLE_SIZE + 1)
+    result.t_log.data[].setLen(LOG_TABLE_SIZE + 1);
+    result.initSigmoid();
+    result.initLog();
+
+proc sigmoid*(self: Model; x: float32): float32 {.noSideEffect.} =
+    if x < (float32)MAX_SIGMOID:
+        return 0.0
+    elif x > (float32)MAX_SIGMOID:
+        return 1.0
+    else:
+        var i:int32  = int32( float32(x + (float32)MAX_SIGMOID) * float32(SIGMOID_TABLE_SIZE) / float32(MAX_SIGMOID) / 2'f32);
+        return self.t_sigmoid.data[][i]
+
+proc binaryLogistic*(self: var Model; target: int32; label: bool; lr: float32): float32 =
+    var score = self.sigmoid(self.wo.dotRow(self.hidden,target))
+    var alpha = lr * float32(label) - score
+    self.grad.addRow(self.wo,target,alpha)
+    self.wo.addRow(self.hidden,target,alpha)
+    if label:
+        return -self.log(score)
+    else:
+        return -self.log(1.0 - score)
+    
+proc negativeSampling*(self: var Model; target: int32; lr: float32): float32 =
+    var loss = 0.0
+    self.grad.zero()
+    for n in 0..self.args.neg:
+        if n == 0:
+            loss += self.binaryLogistic(target,true,lr)
+        else:
+            loss += self.binaryLogistic(self.getNegative(target),false,lr)
+    return loss
+
+proc hierarchicalSoftmax*(self: var Model; target: int32; lr: float32): float32 =
+    var loss:float32 = 0.0 
+    self.grad.zero()
+    let binaryCode:ptr seq[bool] = self.codes[target].addr
+    let pathToRoot:ptr seq[int32] = self.paths[target].addr
+    for i in 0..<pathToRoot[].len:
+        loss += self.binaryLogistic(pathToRoot[i],binaryCode[i],lr)
+    return loss
+
+proc softmax*(self: var Model; target: int32; lr: float32): float32  =
+    self.grad.zero()
+    self.computeOutputSoftmax()
+    var label,alpha:float32
+    for i in 0..<self.osz:
+        label = if i == target : 1.0 else: 0.0
+        alpha = lr * (label = self.output[i])
+        self.grad.addRow(self.wo,i,alpha)
+        self.wo.addRow(self.hidden,i,alpha)
+    return -self.log(self.output[target])
+
+proc predict*(self: Model; ipt: seq[int32]; k: int32; threshold: float32;heap: var seq[tuple[first:float32, second:int32]]; hidden: var Vector; output: var Vector) {. noSideEffect.} =
+    if k <= 0:
+        raise newException(ValueError,"k needs to be 1 or higher!")
+    if self.args.model != model_name.sup:
+        raise newException(ValueError,"Model needs to be supervised for prediction!")
+    heap.setLen(k + 1)
+    self.computeHidden(ipt,hidden)
+    if self.args.loss == loss_name.hs:
+        self.dfs(k,threshold,2 * self.osz - 2, 0.0,heap,hidden)
+    else:
+        self.findKBest(k,threshold,heap,hidden,output)
+    sort(heap,system.cmp)
+   
+
+proc predict*(self: var Model; ipt: seq[int32]; k: int32; threshold: float32;
+             heap: var seq[tuple[first:float32, second:int32]]) =
+    self.predict(ipt, k, threshold, heap, self.hidden, self.output)
+
+proc dfs*(self: Model; k: int32; threshold: float32; node: int32; score: float32;
+         heap: var seq[tuple[first:float32, second:int32]]; hidden: var Vector) {.noSideEffect.} =
+    if score < ln(threshold): return
+    if heap.len() == k and score < heap[0].first:
+        return 
+    if self.tree[node].left == -1 and self.tree[node].right == -1:
+        heap.add( (first:score,second:node) )
+        # std::push_heap(heap.begin(), heap.end(), comparePairs);
+        if heap.len() > k:
+
+            # std::pop_heap(heap.begin(), heap.end(), comparePairs);
+            # heap.pop_back();
+    var f:float32
+    if self.quant and self.args.qout:
+        f = self.qwo.dotRow(hidden,node-osz)
+    else:
+        f = self.wo.dotRow(hidden,node - osz)
+    f =  1.0 / (1 + exp(-f))
+    self.dfs(k,threshold,self.tree[node].left,score + self.stdLog(1.0-f),heap,hidden)
+    self.dfs(k,threshold,self.tree[node].right,score + self.stdLog(f),heap,hidden)
+
+proc findKBest*(self: Model; k: int32; threshold: float32; heap: var seq[tuple[first:float, second:int32]];
+               hidden: var Vector; output: var Vector) {.noSideEffect.} =
+    self.computeOutputSoftmax(hidden,output)
+    for i in 0..<self.osz:
+        if output[i] < threshold:continue
+        if heap.len() == k and ln(output[i] < heap[0].first):
+            continue
+        heap.add(output[i],i)
+        # if (heap.size() > k) {
+        #     std::pop_heap(heap.begin(), heap.end(), comparePairs);
+        #     heap.pop_back();
+        # }
+
+# proc update*(this: var Model; a2: vect[int32]; a3: int32; a4: real) {.stdcall,
+#     importcpp: "update", header: headermodel.}
+proc computeHidden*(self: Model; ipt: seq[int32]; hidden: var Vector) {.noSideEffect.} =
+    doAssert(self.hidden.size == self.hsz)
+    hidden.zero()
+    for i in ipt:
+        if self.quant:
+            hidden.addRow(self.qwi,i)
+        else:
+            hidden.addRow(self.wi,i)
+    hidden.mul( 1.0 / ipt.len().float32 )
+
+proc computeOutputSoftmax*(self: Model; hidden: var Vector; output: var Vector) {.noSideEffect.} =
+    if self.quant and args.qout:
+        output.mul(self.qwo,hidden)
+    else:
+        output.mul(self.wo,hidden)
+    
+
+proc computeOutputSoftmax*(self: var Model) =
+    self.computeOutputSoftmax(self.hidden,self.output)
+
+proc setTargetCounts*(self: var Model; counts: seq[int64]) =
+    doAssert(counts.len == self.osz)
+    if self.args.loss == loss_name.ns:
+        self.initTableNegative(counts)
+    if self.args.loss == loss_name.hs:
+        self.buildTree(counts)
+
+proc initTableNegatives*(self: var Model; counts: seq[int64]) =
+    var z:float32 = 0.0
+    for i in 0..<counts.len():
+        z += pow(counts[i].float32,0.5'f32)
+    var c:float32
+    for i in 0..<counts.len():
+        c = pow(counts[i].float32,0.5'f32)
+        for j in 0..<int32(c * NEGATIVE_TABLE_SIZE / z):
+            self.negatives.add(i.int32)
+
+proc buildTree*(self: var Model; counts: seq[int64]) =
+    self.tree.setLen(2 * self.osz - 1)
+    for i in 0..<(2 * self.osz - 1) :
+        self.tree[i].parent = -1
+        self.tree[i].left = -1;
+        self.tree[i].right = -1;
+        self.tree[i].count = 1000000000000000;
+        self.tree[i].binary = false;
+    for i in 0..<self.osz:
+        self.tree[i].count = counts[i]
+    var leaf,node:int32
+    var mini:seq[int32]
+    for i in self.osz..<(2 * self.osz - 1 ):
+        for j in 0..<2:
+            if leaf >= 0 and self.tree[leaf].count < self.tree[node].count:
+                mini[j] = leaf
+                dec leaf
+            else:
+                mini[j] = node
+                inc node
+        self.tree[i].left = mini[0];
+        self.tree[i].right = mini[1];
+        self.tree[i].count = self.tree[mini[0]].count + self.tree[mini[1]].count;
+        self.tree[mini[0]].parent = i;
+        self.tree[mini[1]].parent = i;
+        self.tree[mini[1]].binary = true;
+    var path:seq[int32]
+    var code:seq[bool]
+    var j:int32
+    for i in 0..<self.osz:
+        while self.tree[j].parent != -1:
+            path.add(self.tree[j].parent - self.osz)
+            code.add(self.tree[j].binary)
+            j = self.tree[j].parent
+        
+        self.paths.add(path)
+        self.codes.add(code)
+        path.setLen(0)
+        code.setLen(0)
+
+            
+
