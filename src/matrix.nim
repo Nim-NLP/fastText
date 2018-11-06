@@ -5,7 +5,7 @@ import ./types
 import ./vector
 
 proc constructMatrix*(m: int64; n: int64): Matrix =
-    result = Matrix(idata:newSeq[float32](m * n),m:0,n:0)
+    result = Matrix(idata:newSeq[float32](m * n),m:m,n:n)
     
 proc constructMatrix*(): Matrix =
     result = constructMatrix(0,0)

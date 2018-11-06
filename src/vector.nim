@@ -57,6 +57,16 @@ proc addRow*(self: var Vector; A: Matrix; i: int64) =
         idata[j] += A.at(i, j);
         inc j
 
+{.this: self.}
+proc addRow*(self: var Vector; A: Matrix; i: int64;a:float32) =
+    doAssert(i >= 0);
+    doAssert(i < A.size(0'i64));
+    doAssert(size() == A.size(1'i64));
+    var j = 0
+    while j < A.size(1):
+        idata[j] += a * A.at(i, j)
+        inc j
+
 proc addRow*(self: var Vector; A: QMatrix; i: int64; a: float32) =
     doAssert(i >= 0)
     A.addToVector(self, i.int32);
