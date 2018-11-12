@@ -1,5 +1,5 @@
 
-import ./productquantizer
+# import ./productquantizer
 import ./types
 import ./vector
 import ./matrix

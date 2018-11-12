@@ -1,15 +1,10 @@
 import math
-import ./productquantizer
+# import ./productquantizer
 
 import ./types
 import ./matrix
 import ./qmatrix
 
-proc constructVector*(a1: int64): Vector =
-    result.idata = newSeq[float32](a1)
-
-proc constructVector*(a1: Vector): Vector =
-    result = a1
 
 proc zero*(self: var Vector) =
     for i in countup(0,self.idata.len):
@@ -80,7 +75,7 @@ proc mul*(self: var Vector; A: Matrix; vec: Vector) =
     doAssert(A.size(1) == vec.size());
     var i = 0
     while i < size():
-        idata[i] = A.dotRow(vec, i);
+        idata[i] = A.dotRow(vec, i.int64);
         inc i
 
 proc mul*(self: var Vector; A: QMatrix; vec: Vector) =

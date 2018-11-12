@@ -2,6 +2,7 @@
 import math
 import random
 # import ./float32
+include system/ansi_c
 include system/memory
 
 const nbits:int32 = 8;

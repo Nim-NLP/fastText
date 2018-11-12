@@ -4,32 +4,15 @@ import streams
 import ./types
 import ./vector
 
-proc constructMatrix*(m: int64; n: int64): Matrix =
+proc initMatrix*(m: int64; n: int64): Matrix =
     result = Matrix(idata:newSeq[float32](m * n),m:m,n:n)
     
-proc constructMatrix*(): Matrix =
-    result = constructMatrix(0,0)
+proc initMatrix*(): Matrix =
+    result = initMatrix(0,0)
 
-proc constructMatrix*(a1: Matrix): Matrix =
+proc initMatrix*(a1: Matrix): Matrix =
     result = a1
 
-proc data*(self: var Matrix): ptr float32 =
-    self.idata[0].addr
-
-proc data*(self: Matrix): ptr float32 {.noSideEffect.} =
-    self.idata[0].unsafeAddr
-
-proc at*(self: Matrix; i: int64; j: int64): float32 {.noSideEffect.} =
-    self.idata[ (i * self.n + j).int32 ]
-
-proc at*(self: var Matrix; i: int64; j: int64): ptr float32 =
-    self.idata[ (i * self.n + j).int32 ].unsafeAddr
-
-proc rows*(self: Matrix): int64 =
-    self.m
-
-proc cols*(self: Matrix): int64 = 
-    self.n
 
 proc zero*(self: var Matrix) =
     for i in countup(0,self.idata.len):
@@ -40,13 +23,7 @@ proc uniform*(self: var Matrix; a: float32) =
     for i in countup(0'i64, (self.m * self.n) ):
         self.idata[i.int32] = rand( -a..a)
 
-proc dotRow*(self: Matrix; vec: Vector; i: int64): float32 {.noSideEffect.} =
-    doassert i >= 0
-    doassert i < self.m
-    doassert vec.size == self.n
-    var d:float32 = 0.0
-    for j in countup(0'i64,self.n):
-        d += self.at(i,j) * vec.get(j.int64)
+
 
 proc addRow*(self: var Matrix; vec: Vector; i: int64; a: float32) =
     doassert i >= 0

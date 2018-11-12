@@ -6,6 +6,7 @@ import ./args
 import streams
 import strutils
 import random
+import strscans
 
 type
   id_type* = int32
@@ -31,9 +32,9 @@ type
     words:seq[entry] 
     pdiscard:seq[float32]
     size:int32
-    nwords:int32
-    nlabels:int32
-    ntokens:int64
+    nwords*:int32
+    nlabels*:int32
+    ntokens*:int64
     pruneidxsize:int64
     pruneidx:Table[int32,int32]
     
@@ -51,6 +52,7 @@ proc load*(self: var Dictionary; a2: var Stream)
 
 proc initDictionary*(a1: ptr Args,stream:var Stream): Dictionary =
     result.args = a1
+    debugEcho a1[]
     let i:int32 = -1
     result.word2int = newSeq[i](MAX_VOCAB_SIZE)
     result.pruneidxsize = -1
@@ -99,48 +101,59 @@ proc computeSubwords*(self: Dictionary; word: string; ngrams: var seq[int32];
         n:int
         h:int32
         ngram:string
+        c:uint8
+    # debugEcho word,word.len()
     while i < word.len():
-        if ((cast[int](word[i]) and 0xC0) == 0x80): continue else: discard
+        c = (cast[uint8](word[i]) and 0xC0)
+        # debugEcho c == 0x80
+        if (c == 0x80): 
+            inc i
+            continue 
+        else: 
+            discard
+        # debugEcho 111
         j = i
         n = 1
         while ( j < word.len() and n <= args.maxn):
-            ngram.add(word[j]);
+            ngram.add(word[j])
             inc j
-            while (j < word.len() and (cast[int](word[j]) and 0xC0) == 0x80):
-                ngram.add(word[j]);
+            while (j < word.len() and (cast[uint8](word[j]) and 0xC0) == 0x80):
+                ngram.add(word[j])
                 inc j
+            
+            # debugEcho "n is",n
+            if (n >= args.minn and not (n == 1 and (i == 0 or j == word.len()))):
+                h = (int32) self.hash(ngram) mod cast[uint32](args.bucket)
+                self.pushHash(ngrams, h)
+                if (substrings != nil):
+                    substrings[].add(ngram)
             inc n
-        
-        if (n >= args.minn and not (n == 1 and (i == 0 or j == word.len()))) :
-            h = (int32) self.hash(ngram) mod cast[uint32](args.bucket);
-            self.pushHash(ngrams, h);
-            if (substrings != nil):
-                substrings[].add(ngram);
         inc i
+        # debugEcho "i is",i
 
+{.this: self.}
 proc initNgrams(self:var Dictionary) =
     var 
         i = 0'i32
         word:string
-
     while i < size:
         word = BOW & words[i].word & EOW;
         words[i].subwords.setLen(0);
         words[i].subwords.add(i);
-        if (words[i].word != EOS) :
-            self.computeSubwords(word, words[i].subwords);
+        if (words[i].word != EOS):
+            self.computeSubwords(word, words[i].subwords)
         inc i
-  
-
 
 {.this: self.}
 proc find(self: Dictionary,w:string,  h:uint32):int32 {.noSideEffect.} =
     var 
-        word2intsize:uint32 = cast[uint32](word2int.len())
-        id = cast[int](h mod word2intsize)
-    while (word2int[id] != -1 and words[word2int[id]].word != w) :
-      id = (id + 1) mod cast[int](word2intsize);
-    return cast[int32](id)
+        word2intsize:uint32 = word2int.len().uint32
+        id = h mod word2intsize
+    debugEcho w
+    while (word2int[id] != -1'i32 and words[word2int[id]].word != w):
+      id = (id + 1) mod word2intsize;
+    #   debugEcho id
+    return id.int32
   
 proc find(self: Dictionary,w:string):int32 {.noSideEffect.} = 
     return self.find(w, self.hash(w));
@@ -157,14 +170,16 @@ proc load*(self: var Dictionary; a2: var Stream) =
         c:char
         e:entry
         i = 0
+    echo size
     while i < size:
-        while (c = a2.peekChar();c != '0'):
-            e.word.add(c)
+        var s: seq[char]
+        while (c = a2.readChar();c != '\0'):
+            s.add(c)
         discard a2.readData(addr e.count,sizeof(e.count))
         discard a2.readData(addr e.entry_type,sizeof(entry_type))
-        words.add(e);
+        words.add(e)
         inc i
-    
+    echo "readData"
     pruneidx.clear();
     i = 0
     var 
@@ -175,20 +190,21 @@ proc load*(self: var Dictionary; a2: var Stream) =
         discard a2.readData(addr second,sizeof(second))
         pruneidx[first] = second;
         inc i
-    
+    debugEcho "initTableDiscard"
     self.initTableDiscard()
+    debugEcho  "initTableDiscard finished"
+    debugEcho  "initNgrams"
     self.initNgrams()
-
+    debugEcho  "initNgrams finished"
     let word2intsize = ceil(size.toFloat() / 0.7).toInt
     word2int[word2intsize] = -1'i32
     var j = 0'i32
     while j < size:
         word2int[self.find(words[j].word)] = j;
+        # debugEcho "word2int",j
         inc j
-        
-proc constructDictionary*(a1: ptr Args; a2: var Stream): Dictionary =
-    result.pruneidxsize = -1
-    result.load(a2);
+
+    echo "load finished"
 
 # proc nwords*(this: Dictionary): int32 {.noSideEffect, stdcall, importcpp: "nwords",
 #                                     header: headerdictionary.}
@@ -249,13 +265,37 @@ proc getSubwords*(self: Dictionary; word: string; ngrams: var seq[int32];substri
 
 # proc add*(this: var Dictionary; a2: string) {.stdcall, importcpp: "add",
 #                                         header: headerdictionary.}
-proc readWord*(self: Dictionary; i: var Stream; word: var string): bool {.noSideEffect.} =
-    var c:int32
+
+# proc skipUntil(s: string; until: string; unless = '\0'; start: int): int =
+#     # Skips all characters until the string `until` is found. Returns 0
+#     # if the char `unless` is found first or the end is reached.
+#     var i = start
+#     var u = 0
+#     while true:
+#       if i >= s.len or s[i] == unless:
+#         return 0
+#       elif s[i] == until[0]:
+#         u = 1
+#         while i+u < s.len and u < until.len and s[i+u] == until[u]:
+#           inc u
+#         if u >= until.len: break
+#       inc(i)
+#     result = i+u-start
+
+proc readWord*(self: Dictionary; i:  Stream; word: var string): bool  =
+    var idx, old = 0
+    for line in i.lines:
+        while idx < line.len:
+            old = idx
+            if scanp(line, idx, *(~ {' ', '\n', '\r','\t','\v' ,'\f','\0',}) -> word.add($_ & EOS),  $index):
+                idx = old + 1
 
 # proc readFromFile*(this: var Dictionary; a2: var istream) {.stdcall,
 #     importcpp: "readFromFile", header: headerdictionary.}
-# proc getLabel*(this: Dictionary; a2: int32): string {.noSideEffect, stdcall,
-#     importcpp: "getLabel", header: headerdictionary.}
+proc getLabel*(self: Dictionary; lid: int32): string {.noSideEffect.} =
+    if lid < 0 or lid >= self.nlabels:
+        raise newException(ValueError,"Label id is out of range [0, " & self.nlabels.intToStr)
+    return self.words[lid + self.nwords].word
 # proc save*(this: Dictionary; a2: var ostream) {.noSideEffect, stdcall,
 #     importcpp: "save", header: headerdictionary.}
 # proc getCounts*(this: Dictionary; a2: entry_type): vector[int64] {.noSideEffect,
@@ -271,8 +311,8 @@ proc addSubwords*(self:Dictionary; line:var seq[int32]; token:string; wid:int32)
             let ngrams = self.getSubwords(wid)
             line = ngrams
 
-proc getLine*(self: Dictionary; i: var Stream; words: var seq[int32];
-             labels: var seq[int32]): int32 {.noSideEffect.} =
+proc getLine*(self: Dictionary; i:  Stream; words: var seq[int32];
+             labels: var seq[int32]): int32  =
     var word_hashes:seq[int32]
     var token:string
     var ntokens = 0
@@ -295,7 +335,7 @@ proc getLine*(self: Dictionary; i: var Stream; words: var seq[int32];
         if token == EOS:
             break
 
-proc getLine*(self: Dictionary; i: var Stream; words: var seq[int32];rng: var Rand): int32 {.noSideEffect.} =
+proc getLine*(self: Dictionary; i:  Stream; words: var seq[int32];rng: var Rand): int32  =
     var token:string
     var ntokens:int32 = 0
     # reset(in);

@@ -27,8 +27,8 @@ type
     qwi*:ptr QMatrix
     qwo*:ptr QMatrix
     args*:ptr Args
-    hidden*:Vector
-    output*:Vector
+    hidden*: Vector
+    output*: Vector
     grad*:Vector
     hsz*:int32
     osz*:int32
@@ -42,6 +42,12 @@ type
     paths*:seq[seq[int32]]
     codes*:seq[seq[bool]]
     tree*:seq[Node]
+
+proc setQuantizePointer*(self:var Model,qwi:ptr QMatrix,qwo:ptr QMatrix,qout:bool) =
+    self.qwi = qwi
+    self.qwo = qwo
+    if qout:
+        self.osz = self.qwo[].getM().int32
 
 proc getLoss*(self: Model): float32 {.noSideEffect.} =
     return self.loss / self.nexamples.float32
@@ -67,10 +73,10 @@ proc initLog*(self:Model) =
         x = ((float32) float32(i) + float32(1e-5)) / (float32) LOG_TABLE_SIZE;
         self.t_sigmoid.data[].add(1.0 / ln(x))
         
-proc constructModel*(wi:ptr  Matrix; wo:ptr Matrix;args: ptr Args; seed: int32): Model =
-    result.hidden = constructVector(args.dim)
-    result.output = constructVector(wo[].size(0))
-    result.grad = constructVector(args.dim)
+proc initModel*(wi:ptr  Matrix; wo:ptr Matrix;args: ptr Args; seed: int32): Model =
+    result.hidden = initVector(args.dim)
+    result.output = initVector(wo[].size(0))
+    result.grad = initVector(args.dim)
     result.quant = false
     result.rng = initRand(seed)
     result.wi = wi
@@ -192,22 +198,22 @@ proc findKBest*(self: Model; k: int32; threshold: float32; heap: var seq[tuple[f
         if heap.len > k:
             discard heap.pop()
 
-proc predict*(self: Model; ipt: seq[int32]; k: int32; threshold: float32;heap: var seq[tuple[first:float32, second:int32]]; hidden: var Vector; output: var Vector) {. noSideEffect.} =
+proc predict*(self: Model; ipt: seq[int32]; k: int32; threshold: float32;heap: var seq[tuple[first:float32, second:int32]]; hidden: ptr Vector; output: ptr Vector) {. noSideEffect.} =
     if k <= 0:
         raise newException(ValueError,"k needs to be 1 or higher!")
     if self.args.model != model_name.sup:
         raise newException(ValueError,"Model needs to be supervised for prediction!")
     heap.setLen(k + 1)
-    self.computeHidden(ipt,hidden)
+    self.computeHidden(ipt,hidden[])
     if self.args.loss == loss_name.hs:
-        self.dfs(k,threshold,2 * self.osz - 2, 0.0,heap,hidden)
+        self.dfs(k,threshold,2 * self.osz - 2, 0.0,heap,hidden[])
     else:
-        self.findKBest(k,threshold,heap,hidden,output)
+        self.findKBest(k,threshold,heap,hidden[],output[])
     sort(heap,system.cmp)
 
-proc predict*(self: var Model; ipt: seq[int32]; k: int32; threshold: float32;
+proc predict*(self:  Model; ipt: seq[int32]; k: int32; threshold: float32;
              heap: var seq[tuple[first:float32, second:int32]]) =
-    self.predict(ipt, k, threshold, heap, self.hidden, self.output)
+    self.predict(ipt, k, threshold, heap, self.hidden.unSafeAddr, self.output.unSafeAddr)
 
 proc initTableNegatives*(self: var Model; counts: seq[int64]) =
     var z:float32 = 0.0
