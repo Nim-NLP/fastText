@@ -46,16 +46,17 @@ proc initDictionary*(a1: ptr Args): Dictionary =
     let i:int32 = -1
     result.word2int = newSeq[i](MAX_VOCAB_SIZE)
     result.pruneidxsize = -1'i32
+    result.pruneidx =  initTable[int32,int32]()
 
 {.this: self.}
 proc load*(self: var Dictionary; a2: var Stream)
 
 proc initDictionary*(a1: ptr Args,stream:var Stream): Dictionary =
     result.args = a1
-    debugEcho a1[]
     let i:int32 = -1
     result.word2int = newSeq[i](MAX_VOCAB_SIZE)
     result.pruneidxsize = -1
+    result.pruneidx =  initTable[int32,int32]()
     result.load(stream)
 
 {.this: self.}
@@ -161,34 +162,34 @@ proc find(self: Dictionary,w:string):int32 {.noSideEffect.} =
 {.this: self.}
 proc load*(self: var Dictionary; a2: var Stream) =
     words.setLen(0)
-    discard a2.readData(addr size,sizeof(size))
-    discard a2.readData(addr nwords,sizeof(nwords))
-    discard a2.readData(addr nlabels,sizeof(nlabels))
-    discard a2.readData(addr ntokens,sizeof(ntokens))
-    discard a2.readData(addr pruneidxsize,sizeof(pruneidxsize))
+    discard a2.readData(addr size,sizeof(int32))
+    discard a2.readData(addr nwords,sizeof(int32))
+    discard a2.readData(addr nlabels,sizeof(int32))
+    discard a2.readData(addr ntokens,sizeof(int64))
+    discard a2.readData(addr pruneidxsize,sizeof(int64))
     var
         c:char
         e:entry
         i = 0
-    echo size
+
     while i < size:
         var s: seq[char]
-        while (c = a2.readChar();c != '\0'):
+        while (c = a2.readChar();c.uint != 0):
             s.add(c)
-        discard a2.readData(addr e.count,sizeof(e.count))
-        discard a2.readData(addr e.entry_type,sizeof(entry_type))
+        discard a2.readData(addr e.count,sizeof(int64))
+        discard a2.readData(addr e.entry_type,sizeof(int32))
         words.add(e)
         inc i
-    echo "readData"
+    debugEcho "readData"
     pruneidx.clear();
     i = 0
     var 
         first:int32
         second:int32
     while i < pruneidxsize:
-        discard a2.readData(addr first,sizeof(first))
-        discard a2.readData(addr second,sizeof(second))
-        pruneidx[first] = second;
+        discard a2.readData(addr first,sizeof(int32))
+        discard a2.readData(addr second,sizeof(int32))
+        pruneidx[first] = second
         inc i
     debugEcho "initTableDiscard"
     self.initTableDiscard()
@@ -204,7 +205,7 @@ proc load*(self: var Dictionary; a2: var Stream) =
         # debugEcho "word2int",j
         inc j
 
-    echo "load finished"
+    debugEcho "load finished"
 
 # proc nwords*(this: Dictionary): int32 {.noSideEffect, stdcall, importcpp: "nwords",
 #                                     header: headerdictionary.}
@@ -298,8 +299,11 @@ proc getLabel*(self: Dictionary; lid: int32): string {.noSideEffect.} =
     return self.words[lid + self.nwords].word
 # proc save*(this: Dictionary; a2: var ostream) {.noSideEffect, stdcall,
 #     importcpp: "save", header: headerdictionary.}
-# proc getCounts*(this: Dictionary; a2: entry_type): vector[int64] {.noSideEffect,
-#     stdcall, importcpp: "getCounts", header: headerdictionary.}
+proc getCounts*(self: Dictionary; a2: entry_type): seq[int64] {.noSideEffect.} =
+    for w in self.words:
+        if w.entry_type == a2:
+            result.add(w.count)
+
 proc addSubwords*(self:Dictionary; line:var seq[int32]; token:string; wid:int32) =
     if wid < 0:
         if token != EOS:
@@ -311,12 +315,19 @@ proc addSubwords*(self:Dictionary; line:var seq[int32]; token:string; wid:int32)
             let ngrams = self.getSubwords(wid)
             line = ngrams
 
+proc reset*(self:Dictionary;i:Stream) =
+    i.setPosition(0)
+    if i.atEnd():
+        i.close()
+        i.setPosition(0)
+
+
 proc getLine*(self: Dictionary; i:  Stream; words: var seq[int32];
              labels: var seq[int32]): int32  =
     var word_hashes:seq[int32]
     var token:string
     var ntokens = 0
-    # reset(in);
+    self.reset(i)
     words.setLen(0)
     labels.setLen(0)
     var h:uint32

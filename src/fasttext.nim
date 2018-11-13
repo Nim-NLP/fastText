@@ -13,20 +13,20 @@ const FASTTEXT_FILEFORMAT_MAGIC_INT32 = 793712314'i32
 
 type
     FastText* = object
-        args: ptr Args
-        dict: ptr Dictionary
-        input: ptr Matrix
-        output: ptr Matrix
-        qinput: ptr QMatrix
-        qoutput: ptr QMatrix
-        model: ptr Model
+        args*: Args
+        dict:  Dictionary
+        input:  Matrix
+        output:  Matrix
+        qinput:  QMatrix
+        qoutput:  QMatrix
+        model:  Model
 
         quant: bool
         version: int32
 
 proc initFastText*(): FastText =
     result.quant = false
-    result.version = FASTTEXT_VERSION
+    # result.version = FASTTEXT_VERSION
 
 proc checkModel*(self: var FastText, i: var Stream): bool =
     var magic: int32
@@ -46,8 +46,14 @@ proc loadModel*(self: var FastText; i: var Stream) =
         qinput = initQMatrix()
         qoutput = initQMatrix()
     args.load(i)
+
     if self.version == 11 and args.model == model_name.sup:
         args.maxn = 0
+    assert args.lrUpdateRate == 100
+    assert args.dim == 16
+    assert args.minn == 2
+    assert args.maxn == 4
+    assert args.bucket == 2000000
     var dict = initDictionary(args.addr, i)
     var quant_input: bool
     discard i.readData(quant_input.addr, sizeof(bool))
@@ -62,11 +68,22 @@ proc loadModel*(self: var FastText; i: var Stream) =
         qoutput.load(i)
     else:
         output.load(i)
+        
     var model = initModel(input.addr,output.addr,args.addr,0)
     model.quant = self.quant
-    model.setQuantizePointer(qinput,qoutput,args.qout)
-    self.model = model.addr
-    # if args.model
+    model.setQuantizePointer(qinput.addr,qoutput.addr,args.qout)
+    
+    self.args = args
+    self.input = input
+    self.output = output
+    self.qinput = qinput
+    self.qoutput = qoutput
+    if args.model == model_name.sup:
+        model.setTargetCounts(dict.getCounts(entry_type.label))
+    else:
+        model.setTargetCounts(dict.getCounts(entry_type.word))
+    self.model = model
+    self.dict = dict
 
 proc loadModel*(self: var FastText; filename: string) =
     var ifs = openFileStream(filename)
@@ -81,17 +98,17 @@ proc predict*(self: var FastText; i:  Stream; k: int32;
         threshold: float32 ) =
     var words, labels: seq[int32]
     predictions.setLen(0)
-    discard self.dict[].getLine(i, words, labels)
+    discard self.dict.getLine(i, words, labels)
     predictions.setLen(0)
     if words.len == 0: return
     var hidden = initVector(self.args.dim)
-    var output = initVector(self.dict[].nlabels)
+    var output = initVector(self.dict.nlabels)
     var modelPredictions: seq[tuple[first: float32, second: int32]]
-    self.model[].predict(words, k, threshold, modelPredictions, hidden.addr,
+    self.model.predict(words, k, threshold, modelPredictions, hidden.addr,
             output.addr)
     for it in modelPredictions:
         predictions.add( (first: it.first,
-                second: self.dict[].getLabel(it.second)))
+                second: self.dict.getLabel(it.second)))
 
 proc predict*(self: var FastText; i:  Stream; k: int32; print_prob: bool;
         threshold: float32 ) =
@@ -115,6 +132,5 @@ proc predict*(self: var FastText; i:  Stream; k: int32; print_prob: bool;
 # fasttext_pybind.cc interface
 proc predict*(self: var FastText; text: string; k: int32;
         threshold: float32 ): seq[tuple[first: float32, second: string]] {.noInit.}=
-    # var r:seq[tuple[first: float32, second: string]]
     var stream = (Stream)newStringStream(text)
     self.predict(stream,k,result,threshold)
