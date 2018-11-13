@@ -81,17 +81,17 @@ proc save*(self: var Matrix; o: var Stream) =
     o.writeData(self.idata.addr, (int32) self.m * self.n * sizeof(float32))
 
 type ssize_t = int32
+
 proc load*(self: var Matrix; i: var Stream) = 
-    discard i.readData(self.m.addr,sizeof(ssize_t))
-    discard i.readData(self.n.addr,sizeof(ssize_t))
-    debugEcho self.m
-    debugEcho self.n
-    # self.idata.setLen(0)
-    # debugEcho self.m * self.n
-    # self.idata.setLen(self.m * self.n)
-    # discard i.readData(self.idata.addr, self.m * self.n * sizeof(float32))
+    discard i.readData(self.m.addr,sizeof(int64))
+    discard i.readData(self.n.addr,sizeof(int64))
+    debugEcho self.m,"m"
+    debugEcho self.n,"n"
+    
+    self.idata.setLen(self.m * self.n)
+    # discard i.readData(self.idata.addr,(int32) self.m * self.n * sizeof(float32))
     # debugEcho self.m * self.n,"matrix data size"
-    # for j in 0..<self.m * self.n :
-    #     self.idata.add( i.readFloat32() )
+    for j in 0..<self.m * self.n :
+        discard i.readData(self.idata[j].addr, sizeof(cfloat))
 
 # proc dump*(self: Matrix; o: var Stream) {.noSideEffect.} =

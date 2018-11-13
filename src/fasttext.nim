@@ -39,51 +39,44 @@ proc checkModel*(self: var FastText, i: var Stream): bool =
     return true
 
 proc loadModel*(self: var FastText; i: var Stream) =
-    var
-        args = initArgs()
-        input = initMatrix()
-        output = initMatrix()
-        qinput = initQMatrix()
-        qoutput = initQMatrix()
-    args.load(i)
+    self.args = initArgs()
+    self.input = initMatrix()
+    self.output = initMatrix()
+    self.qinput = initQMatrix()
+    self.qoutput = initQMatrix()
+    self.args.load(i)
 
-    if self.version == 11 and args.model == model_name.sup:
-        args.maxn = 0
-    assert args.lrUpdateRate == 100
-    assert args.dim == 16
-    assert args.minn == 2
-    assert args.maxn == 4
-    assert args.bucket == 2000000
-    var dict = initDictionary(args.addr, i)
+    if self.version == 11 and self.args.model == model_name.sup:
+        self.args.maxn = 0
+
+    self.dict = initDictionary(self.args, i)
     var quant_input: bool
     discard i.readData(quant_input.addr, sizeof(bool))
-    if not quant_input and dict.isPruned():
+    if not quant_input and self.dict.isPruned():
         raise newException(ValueError,
                 """Invalid model file.\n
                   Please download the updated model from www.fasttext.cc.\n
                   See issue #332 on Github for more information.\n""")
 
-    discard i.readData(args.qout.addr, sizeof(bool))
-    if self.quant and args.qout:
-        qoutput.load(i)
+    discard i.readData(self.args.qout.addr, sizeof(bool))
+    debugEcho "self.args.qout",self.args.qout
+    if self.quant and self.args.qout:
+        self.qoutput.load(i)
     else:
-        output.load(i)
-        
-    var model = initModel(input.addr,output.addr,args.addr,0)
-    model.quant = self.quant
-    model.setQuantizePointer(qinput.addr,qoutput.addr,args.qout)
-    
-    self.args = args
-    self.input = input
-    self.output = output
-    self.qinput = qinput
-    self.qoutput = qoutput
-    if args.model == model_name.sup:
-        model.setTargetCounts(dict.getCounts(entry_type.label))
+        self.output.load(i)
+    debugEcho "output loaded"
+    self.model = initModel(self.input.addr,self.output.addr,self.args.addr,0)
+    debugEcho "initModel"
+    self.model.quant = self.quant
+    self.model.setQuantizePointer(self.qinput.addr,self.qoutput.addr,self.args.qout)
+    debugEcho "setQuantizePointer"
+    if self.args.model == model_name.sup:
+        debugEcho "setTargetCounts 1"
+        self.model.setTargetCounts(self.dict.getCounts(entry_type.label))
     else:
-        model.setTargetCounts(dict.getCounts(entry_type.word))
-    self.model = model
-    self.dict = dict
+        debugEcho "setTargetCounts 2"
+        self.model.setTargetCounts(self.dict.getCounts(entry_type.word))
+    debugEcho "load model end"
 
 proc loadModel*(self: var FastText; filename: string) =
     var ifs = openFileStream(filename)

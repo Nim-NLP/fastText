@@ -1,4 +1,4 @@
-# import ./productquantizer
+import ./productquantizer
 type
     Matrix* = object
       idata*:seq[float32]
@@ -9,10 +9,10 @@ type
       codesize*:int32
       codes*:seq[uint8]
       norm_codes*:seq[uint8]
-    #   pq*,npq*:ptr ProductQuantizer
+      pq*,npq*:ptr ProductQuantizer
 
 proc size*(self: Matrix; dim: int64): int64 =
-    doassert(dim == 0 or dim == 1 )
+    assert(dim == 0 or dim == 1 )
     result = if dim == 0 : self.m else : self.n
 
 type

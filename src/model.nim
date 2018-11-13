@@ -48,6 +48,8 @@ proc setQuantizePointer*(self:var Model,qwi:ptr QMatrix,qwo:ptr QMatrix,qout:boo
     self.qwo = qwo
     if qout:
         self.osz = self.qwo[].getM().int32
+        debugEcho "self.qwo[].getM()",self.qwo[].getM()
+    debugEcho "setQuantizePointer end"
 
 proc getLoss*(self: Model): float32 {.noSideEffect.} =
     return self.loss / self.nexamples.float32
@@ -64,32 +66,33 @@ proc stdLog*(self: Model; x: float32): float32 {.noSideEffect.} =
 proc initSigmoid*(self:Model) =
     var x:float32
     for i in 0..<SIGMOID_TABLE_SIZE+1:
-        x = ((float32) i * 2 * MAX_SIGMOID) / (float32) SIGMOID_TABLE_SIZE - MAX_SIGMOID;
-        self.t_sigmoid.data[].add(1.0 / exp(-x))
+        x = ((float32) i * 2 * MAX_SIGMOID) / (float32) SIGMOID_TABLE_SIZE - MAX_SIGMOID
+        self.t_sigmoid.data[i] = 1.0'f32 / exp(-x)
 
 proc initLog*(self:Model) =
     var x:float32
     for i in 0..<LOG_TABLE_SIZE+1:
         x = ((float32) float32(i) + float32(1e-5)) / (float32) LOG_TABLE_SIZE;
-        self.t_sigmoid.data[].add(1.0 / ln(x))
+        self.t_sigmoid.data[i] = 1.0'f32 / ln(x)
         
 proc initModel*(wi:ptr  Matrix; wo:ptr Matrix;args: ptr Args; seed: int32): Model =
-    result.hidden = initVector(args.dim)
+    result.hidden = initVector(args[].dim)
     result.output = initVector(wo[].size(0))
-    result.grad = initVector(args.dim)
+    result.grad = initVector(args[].dim)
     result.quant = false
     result.rng = initRand(seed)
     result.wi = wi
     result.args = args
+    debugEcho "wo[].size(0).int32",wo[].size(0).int32
     result.osz = wo[].size(0).int32
-    result.hsz = args.dim
+    result.hsz = args[].dim
     result.negpos = 0
     result.loss = 0.0
     result.nexamples = 1
     result.t_sigmoid.data[].setLen(SIGMOID_TABLE_SIZE + 1)
-    result.t_log.data[].setLen(LOG_TABLE_SIZE + 1);
-    result.initSigmoid();
-    result.initLog();
+    result.t_log.data[].setLen(LOG_TABLE_SIZE + 1)
+    result.initSigmoid()
+    result.initLog()
 
 proc sigmoid*(self: Model; x: float32): float32 {.noSideEffect.} =
     if x < (float32)MAX_SIGMOID:
@@ -216,17 +219,21 @@ proc predict*(self:  Model; ipt: seq[int32]; k: int32; threshold: float32;
     self.predict(ipt, k, threshold, heap, self.hidden.unSafeAddr, self.output.unSafeAddr)
 
 proc initTableNegatives*(self: var Model; counts: seq[int64]) =
+    debugEcho "initTableNegatives"
     var z:float32 = 0.0
     for i in 0..<counts.len():
         z += pow(counts[i].float32,0.5'f32)
     var c:float32
     for i in 0..<counts.len():
         c = pow(counts[i].float32,0.5'f32)
-        for j in 0..<int32(c * NEGATIVE_TABLE_SIZE / z):
+        for j in 0..<(c * NEGATIVE_TABLE_SIZE / z).int32:
             self.negatives.add(i.int32)
+    
     self.negatives.shuffle()
+    debugEcho "initTableNegatives shuffle"
 
 proc buildTree*(self: var Model; counts: seq[int64]) =
+    debugEcho "buildTree"
     self.tree.setLen(2 * self.osz - 1)
     for i in 0..<(2 * self.osz - 1) :
         self.tree[i].parent = -1
@@ -267,10 +274,16 @@ proc buildTree*(self: var Model; counts: seq[int64]) =
         code.setLen(0)
             
 proc setTargetCounts*(self: var Model; counts: seq[int64]) =
-    doAssert(counts.len == self.osz)
-    if self.args.loss == loss_name.ns:
+    debugEcho "setTargetCounts innner"
+    debugEcho counts.len
+    debugEcho self.osz
+    assert(counts.len == self.osz)
+    debugEcho "self.args[].loss",self.args[].loss
+    if self.args[].loss == loss_name.ns:
+        debugEcho "initTableNegatives 1"
         self.initTableNegatives(counts)
-    if self.args.loss == loss_name.hs:
+    if self.args[].loss == loss_name.hs:
+        debugEcho "buildTree 1"
         self.buildTree(counts)
 
 

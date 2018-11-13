@@ -81,10 +81,10 @@ proc load*(self: var QMatrix; a2: var Stream) =
     discard a2.readData(addr m,sizeof(m))
     discard a2.readData(addr n,sizeof(n))
     discard a2.readData(addr codesize,sizeof(codesize))
-    discard a2.readData(addr m,sizeof(m))
-    discard a2.readData(addr m,sizeof(m))
-    codes = newSeq[uint8](codesize);
+    self.codes = newSeq[uint8](codesize)
     # in.read((char*) codes_.data(), codesize_ * sizeof(uint8_t));
+    for j in 0..<self.codes.len :
+        discard a2.readData(self.codes[j].addr, sizeof(uint8))
     # pq_ = std::unique_ptr<ProductQuantizer>( new ProductQuantizer());
     # pq_->load(in);
     # if (qnorm_) {

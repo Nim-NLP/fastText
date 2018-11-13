@@ -8,91 +8,76 @@ import ./qmatrix
 
 proc zero*(self: var Vector) =
     for i in countup(0,self.idata.len):
-        self.data[i] = 0.0
+        self.idata[i] = 0.0
 
 {.this: self.}
 proc mul*(self: var Vector; a: float32) =
-    var i = 0
-    while i < self.size():
-        idata[i] *= a;
-        inc i
+    for i in  0..<self.size():
+        idata[i] *= a
 
 {.this: self.}
 proc norm*(self: Vector): float32 =
-    var sum:float32 = 0;
-    var i = 0
-    while i < self.size():
+    var sum:float32 = 0
+    for i in 0..<self.size():
         sum += idata[i] * idata[i]
-        inc i
-    sqrt(sum)
+    result = sqrt(sum)
 
 {.this: self.}
 proc addVector*(self: var Vector; source: Vector) =
-    doAssert(self.size() == source.size())
-    var i = 0
-    while i < self.size():
+    assert(self.size() == source.size())
+    for i in 0..<self.size():
         idata[i] += source.idata[i]
-        inc i
 
 {.this: self.}
 proc addVector*(self: var Vector; source: Vector; s: float32) =
-    doAssert(self.size() == source.size())
-    var i = 0
-    while i < self.size():
+    assert(self.size() == source.size())
+    for i in 0..<self.size():
         idata[i] += s * source.idata[i]
-        inc i
 
 {.this: self.}
 proc addRow*(self: var Vector; A: Matrix; i: int64) =
-    doAssert(i >= 0);
-    doAssert(i < A.size(0'i64));
-    doAssert(size() == A.size(1'i64));
-    var j = 0
-    while j < A.size(1):
-        idata[j] += A.at(i, j);
-        inc j
+    assert(i >= 0);
+    assert(i < A.size(0'i64));
+    assert(size() == A.size(1'i64))
+    for j in  0..<A.size(1):
+        idata[j] += A.at(i, j)
 
 {.this: self.}
 proc addRow*(self: var Vector; A: Matrix; i: int64;a:float32) =
-    doAssert(i >= 0);
-    doAssert(i < A.size(0'i64));
-    doAssert(size() == A.size(1'i64));
+    assert(i >= 0);
+    assert(i < A.size(0'i64));
+    assert(size() == A.size(1'i64));
     var j = 0
     while j < A.size(1):
         idata[j] += a * A.at(i, j)
         inc j
 
 proc addRow*(self: var Vector; A: QMatrix; i: int64; a: float32) =
-    doAssert(i >= 0)
+    assert(i >= 0)
     A.addToVector(self, i.int32);
 
 proc addRow*(self: var Vector; A:var QMatrix; i: int64;) =
-    doAssert(i >= 0);
+    assert(i >= 0);
     A.addToVector(self, i.int32);
 
 proc mul*(self: var Vector; A: Matrix; vec: Vector) =
-    doAssert(A.size(0) == self.size());
-    doAssert(A.size(1) == vec.size());
-    var i = 0
-    while i < size():
-        idata[i] = A.dotRow(vec, i.int64);
-        inc i
+    assert(A.size(0) == self.size());
+    assert(A.size(1) == vec.size());
+    for  i in 0..<size():
+        idata[i] = A.dotRow(vec, i.int64)
 
 proc mul*(self: var Vector; A: QMatrix; vec: Vector) =
-    doAssert(A.getM() == self.size());
-    doAssert(A.getN() == vec.size());
-    var i = 0
-    while i < size():
-        idata[i] = A.dotRow(vec, i);
-        inc i
+    assert(A.getM() == self.size())
+    assert(A.getN() == vec.size())
+    for i in 0..<size():
+        idata[i] = A.dotRow(vec, i)
 
 proc argmax*(self: var Vector): int64 =
     var 
         max:float32 = self.idata[0]
-        argmax:int64 = 0;
     var i = 1
     while i < size():
         if self.idata[i] > max:
             max = self.idata[i];
-            argmax = i;
+            result = i
         inc i
