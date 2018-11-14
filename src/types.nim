@@ -1,5 +1,10 @@
 import ./productquantizer
 type
+    ProductQuantizer*  = object
+      dim*,nsubq*,dsub*,lastdsub*:int32
+      centroids*:ref seq[ ptr float32]
+      # std::minstd_rand rng;
+type
     Matrix* = object
       idata*:seq[float32]
       m*,n*:int64
@@ -39,6 +44,12 @@ proc `[]`*(self: var Vector; i: int64): ptr float32 =
     let a:ptr UncheckedArray[float32] = cast[ptr UncheckedArray[float32]](self.data)
     result = a[i.int32].addr
 
+# proc `[]=`*(self: var Vector; i: int64,j:float32)  =
+#     self.idata[i] = j
+
+# proc `[]+=`*(self: var Vector; i: int64,j:float32)  =
+#     self.idata[i] = self.idata[i] + j
+    
 proc get*(self: Vector; i: int64): float32 =
     self.idata[i.int32]
 

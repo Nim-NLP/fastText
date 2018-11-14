@@ -1,9 +1,11 @@
 
 import math
 import random
+import streams
 # import ./float32
 include system/ansi_c
 include system/memory
+import types
 
 const nbits:int32 = 8;
 const ksub:int32 = 1 shl nbits;
@@ -13,15 +15,10 @@ const seed:int32 = 1234;
 const niter:int32 = 25;
 const eps:float32 = 1e-7.float32;
 
-type
-  ProductQuantizer*  = object
-    dim,nsubq,dsub,lastdsub:int32
-    centroids:ref seq[ ptr float32]
-    # std::minstd_rand rng;
-  
-# proc `[]`(self:ptr float32,key:int):uint8 = 
-#     let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
-#     (uint8)a[key]
+proc `[]`(self: float32,key:int):uint8 = 
+    let a: UncheckedArray[uint8] = cast[ UncheckedArray[uint8]](self)
+    (uint8)a[key]
+
 
 # proc distL2(x:ptr float32, y:ptr float32,  d:int32):float32 =
 #     var dist:float32  = 0.float32
@@ -44,15 +41,14 @@ proc initProductQuantizer*(dim: int32; dsub: int32): ProductQuantizer =
     else:
         inc result.nsubq
 
-{.this: self.} 
 proc get_centroids*(self: var ProductQuantizer; m: int32; i: uint8): ptr float32 =
-    if (m == nsubq - 1) :
-        return centroids[m * ksub * dsub + cast[int32](i) * lastdsub]
-    return centroids[(m * ksub + cast[int32](i)) * dsub];
+    if (m == self.nsubq - 1) :
+        return self.centroids[m * ksub * self.dsub + cast[int32](i) * self.lastdsub]
+    return self.centroids[(m * ksub + cast[int32](i)) * self.dsub];
 
-# proc `[]`(self:ptr uint8,key:int):uint8 = 
-#     let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
-#     (uint8)a[key]
+proc `[]`(self: uint8,key:int):uint8 = 
+    let a: UncheckedArray[uint8] = cast[ UncheckedArray[uint8]](self)
+    (uint8)a[key]
 
 # proc `[]=`(self:ptr uint8,key:int,val:Natural){.discardable.} = 
 #     let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
@@ -87,16 +83,42 @@ proc get_centroids*(self: var ProductQuantizer; m: int32; i: uint8): ptr float32
 
 # proc train*(this: var ProductQuantizer; a2: cint; a3: ptr float32) {.stdcall,
 #     importcpp: "train", header: headerproductquantizer.}
-proc mulcode*(this: ProductQuantizer; a2: Vector; a3: ptr uint8; a4: int32; a5: float32): float32 {.
-    noSideEffect, stdcall, importcpp: "mulcode", header: headerproductquantizer.}
-proc addcode*(this: ProductQuantizer; a2: var Vector; a3: ptr uint8; a4: int32; a5: float32) {.
-    noSideEffect, stdcall, importcpp: "addcode", header: headerproductquantizer.}
+proc mulcode*(self:var ProductQuantizer; x:var Vector; codes:  uint8; t: int32; alpha: float32): float32 =
+    var res = 0.0'f32
+    var d = self.dsub
+    var code:uint8 = (codes.int32 + self.nsubq * t).uint8
+    var c:float32
+    for m in 0..<self.nsubq:
+        c = self.get_centroids(m.int32,(uint8)code[m.int32])[]
+        if m == self.nsubq - 1 :
+            d = self.lastdsub
+        for n in 0..<d:
+            res += x[int64(m * self.dsub + n)][] * c[n].float32
+    result = res * alpha
+
+proc addcode*(self: var ProductQuantizer; x: var Vector; codes: uint8; t: int32; alpha: float32) =
+    var d = self.dsub
+    var code:uint8 = (codes.int32 + self.nsubq * t).uint8
+    var c:float32
+    for m in 0..<self.nsubq:
+        c = self.get_centroids(m.int32,(uint8)code[m.int32])[]
+        if m == self.nsubq - 1 :
+            d = self.lastdsub
+        for n in 0..<d:
+            x[m * self.dsub + n][] += (alpha * c[n].float32)
+    
 # proc compute_code*(this: ProductQuantizer; a2: ptr float32; a3: ptr uint8) {.noSideEffect,
 #     stdcall, importcpp: "compute_code", header: headerproductquantizer.}
 # proc compute_codes*(this: ProductQuantizer; a2: ptr float32; a3: ptr uint8; a4: int32) {.
 #     noSideEffect, stdcall, importcpp: "compute_codes",
 #     header: headerproductquantizer.}
-proc save*(this: var ProductQuantizer; a2: var ostream) {.stdcall, importcpp: "save",
-    header: headerproductquantizer.}
-proc load*(this: var ProductQuantizer; a2: var istream) {.stdcall, importcpp: "load",
-    header: headerproductquantizer.}
+# proc save*(this: var ProductQuantizer; a2: var ostream) {.stdcall, importcpp: "save",
+#     header: headerproductquantizer.}
+proc load*(self: var ProductQuantizer; a2: var Stream) =
+    discard a2.readData(self.dim.addr,sizeof(self.dim))
+    discard a2.readData(self.nsubq.addr,sizeof(self.nsubq))
+    discard a2.readData(self.dsub.addr,sizeof(self.dsub))
+    discard a2.readData(self.lastdsub.addr,sizeof(self.lastdsub))
+    self.centroids[].setLen(self.dim * ksub)
+    for i in 0..<self.centroids[].len():
+        discard a2.readData(self.centroids[i],sizeof(float32))
