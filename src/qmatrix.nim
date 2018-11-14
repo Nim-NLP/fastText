@@ -5,7 +5,8 @@ import ./vector
 import ./matrix
 import streams
 
-# proc quantize*(self: var QMatrix; matrix: Matrix)
+proc quantize*(self: var QMatrix; matrix: Matrix)
+proc quantizeNorm*(self:var QMatrix;norms:Vector)
 
 proc initQMatrix*(): QMatrix =
     result = QMatrix(qnorm:false,m:0,n:0,codesize:0)
@@ -21,7 +22,26 @@ proc initQMatrix*(mat:var Matrix; dsub: int32; qnorm: bool): QMatrix =
     if result.qnorm:
         result.norm_codes.setLen(m)
         result.npq = initProductQuantizer(1'i32,1'i32)
-    # result.quantize(mat);
+    result.quantize(mat)
+
+proc quantizeNorm*(self:var QMatrix;norms:Vector) =
+    assert self.qnorm == true
+    assert norms.size() == self.m
+    
+    auto dataptr = norms.data();
+    npq_->train(m_, dataptr);
+    npq_->compute_codes(dataptr, norm_codes_.data(), m_);
+
+
+proc quantize*(self:var QMatrix;matrix:Matrix) =
+    assert(self.m == matrix.size(0))
+    assert(self.n == matrix.size(1))
+    var temp = Matrix(matrix)
+    if self.qnorm:
+        var norms = initVector(temp.size(0))
+        temp.l2NormRow(norms)
+        temp.divideRow(norms)
+        self.quantizeNorm(norms)
 
 proc save*(self: var QMatrix; o: var Stream) =
     o.writeData(addr self.qnorm,sizeof(self.qnorm))
@@ -36,10 +56,10 @@ proc save*(self: var QMatrix; o: var Stream) =
     
 
 proc load*(self: var QMatrix; a2: var Stream) =
-    discard a2.readData(addr self.qnorm,sizeof(self.qnorm))
-    discard a2.readData(addr self.m,sizeof(self.m))
-    discard a2.readData(addr self.n,sizeof(self.n))
-    discard a2.readData(addr self.codesize,sizeof(self.codesize))
+    discard a2.readData(addr self.qnorm,sizeof(bool))
+    discard a2.readData(addr self.m,sizeof(int64))
+    discard a2.readData(addr self.n,sizeof(int64))
+    discard a2.readData(addr self.codesize,sizeof(int32))
     self.codes = newSeq[uint8](self.codesize)
     for j in 0..<self.codes.len :
         discard a2.readData(self.codes[j].addr, sizeof(uint8))

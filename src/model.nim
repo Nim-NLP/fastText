@@ -47,8 +47,9 @@ proc setQuantizePointer*(self:var Model,qwi:ptr QMatrix,qwo:ptr QMatrix,qout:boo
     self.qwi = qwi
     self.qwo = qwo
     if qout:
-        self.osz = self.qwo[].getM().int32
         debugEcho "self.qwo[].getM()",self.qwo[].getM()
+        self.osz = self.qwo[].getM().int32
+        
     debugEcho "setQuantizePointer end"
 
 proc getLoss*(self: Model): float32 {.noSideEffect.} =

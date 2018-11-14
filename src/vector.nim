@@ -5,7 +5,6 @@ import ./types
 import ./matrix
 import ./qmatrix
 
-
 proc zero*(self: var Vector) =
     for i in countup(0,self.idata.len):
         self.idata[i] = 0.0
@@ -60,13 +59,13 @@ proc addRow*(self: var Vector; A:var QMatrix; i: int64;) =
     assert(i >= 0);
     A.addToVector(self, i.int32);
 
-proc mul*(self: var Vector; A: Matrix; vec: Vector) =
+proc mul*(self: var Vector; A: Matrix; vec:var Vector) =
     assert(A.size(0) == self.size());
     assert(A.size(1) == vec.size());
     for  i in 0..<size():
         idata[i] = A.dotRow(vec, i.int64)
 
-proc mul*(self: var Vector; A: QMatrix; vec: Vector) =
+proc mul*(self: var Vector; A: QMatrix; vec:var Vector) =
     assert(A.getM() == self.size())
     assert(A.getN() == vec.size())
     for i in 0..<size():

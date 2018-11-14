@@ -1,8 +1,10 @@
-import ./productquantizer
+import math
+# import ./productquantizer
+
 type
     ProductQuantizer*  = object
       dim*,nsubq*,dsub*,lastdsub*:int32
-      centroids*:ref seq[ ptr float32]
+      centroids*: seq[float32]
       # std::minstd_rand rng;
 type
     Matrix* = object
@@ -41,9 +43,10 @@ proc data*(self: Vector): ptr seq[float32] =
     self.idata.unSafeAddr
 
 proc `[]`*(self: var Vector; i: int64): ptr float32 =
-    let a:ptr UncheckedArray[float32] = cast[ptr UncheckedArray[float32]](self.data)
-    result = a[i.int32].addr
+    result = self.idata[i.int32].addr
 
+proc `[]`*(self:  Vector; i: int64): ptr float32 =
+    result = self.idata[i.int32].unsafeAddr
 # proc `[]=`*(self: var Vector; i: int64,j:float32)  =
 #     self.idata[i] = j
 
@@ -72,12 +75,13 @@ proc cols*(self: Matrix): int64 =
     self.n
 
 proc dotRow*(self: Matrix; vec: Vector; i: int64): float32 {.noSideEffect.} =
-    doassert i >= 0
-    doassert i < self.m
-    doassert vec.size == self.n
-    var d:float32 = 0.0
+    assert i >= 0
+    assert i < self.m
+    assert vec.size == self.n
     for j in countup(0'i64,self.n):
-        d += self.at(i,j) * vec.get(j.int64)
+        result += self.at(i,j) * vec.get(j.int64)
+    if classify(result) == math.fcNan:
+        raise newException(ValueError,"Encountered NaN.")
 
 proc getM*(self: QMatrix): int64 =
     self.m
@@ -85,40 +89,67 @@ proc getM*(self: QMatrix): int64 =
 proc getN*(self: QMatrix): int64 =
     self.n
 
-# proc quantizeNorm*(self: var QMatrix; norms: Vector) =
-#     assert(self.qnorm == true)
-#     assert(norms.size() == self.m )
-#     let dataptr =  norms.data()
-#     # npq.train(m_, dataptr)
-#     # npq.compute_codes(dataptr, self.norm_codes.data(), m);
+const nbits:int32 = 8;
+const ksub*:int32 = 1 shl nbits;
+const max_points_per_cluster:int32 = 256;
+const max_points:int32 = max_points_per_cluster * ksub
+const seed:int32 = 1234;
+const niter:int32 = 25;
+const eps:float32 = 1e-7.float32;
 
-# proc quantize*(self: var QMatrix; matrix: Matrix) =
-#     doassert(self.m == matrix.size(0));
-#     doassert(self.n == matrix.size(1));
-#     let temp  = matrix
-#     # if (self.qnorm) :
-#     #     Vector norms(temp.size(0));
-#     #     temp.l2NormRow(norms);
-#     #     temp.divideRow(norms);
-#     #     quantizeNorm(norms);
+# proc `[]`(self:var uint8,key:int):uint8 = 
+#     let a: UncheckedArray[uint8] = cast[ UncheckedArray[uint8]](self)
+#     (uint8)a[key]
 
-#     # auto dataptr = temp.data();
-#     # pq_->train(m_, dataptr);
-#     # pq_->compute_codes(dataptr, codes_.data(), m_);
+proc getCentroidsPosition*(self:  ProductQuantizer; m: int32; i: uint8): int32 =
+    if (m == self.nsubq - 1) :
+        return m * ksub * self.dsub + cast[int32](i) * self.lastdsub
+    return (m * ksub + cast[int32](i)) * self.dsub
+    
+
+proc mulcode*(self: ProductQuantizer; x:var Vector; codes: seq[uint8]; t: int32; alpha: float32): float32 =
+    var res = 0.0'f32
+    var d = self.dsub
+    var codePos:int32 = self.nsubq + t
+    var c:int32
+    for m in 0..<self.nsubq:
+        c = self.getCentroidsPosition(m.int32,(uint8)codes[m.int32 + codePos ])
+        if m == self.nsubq - 1 :
+            d = self.lastdsub
+        for n in 0..<d:
+            res += x[int64(m * self.dsub + n)][] * self.centroids[c*n]
+    result = res * alpha
+
+proc addcode*(self:  ProductQuantizer; x: var Vector; codes: seq[uint8]; t: int32; alpha: float32) =
+    var d = self.dsub
+    var codePos:int32 = self.nsubq * t
+    var c:int32
+    for m in 0..<self.nsubq:
+        c = self.getCentroidsPosition(m.int32,(uint8)codes[m.int32 + codePos])
+        if m == self.nsubq - 1 :
+            d = self.lastdsub
+        for n in 0..<d:
+            x[m * self.dsub + n][] += (alpha * self.centroids[c+n])
+
 proc addToVector*(self: QMatrix; x: var Vector; t: int32) =
     var norm:float32 = 1
-    # if self.qnorm:
-    #     norm = npq.get_centroids(0, norm_codes_[t])[0]
-    # pq.addcode(x, codes_.data(), t, norm);
-proc dotRow*(self: QMatrix; vec: Vector; i: int64): float32 =
-    doassert(i >= 0);
-    doassert(i < self.m)
-    doassert(vec.size() == self.n)
+    var normPos:uint8
+    if self.qnorm:
+        normPos = (uint8)self.npq.getCentroidsPosition(0'i32, self.norm_codes[t])
+        norm = self.npq.centroids[normPos]
+    self.pq.addcode(x, self.codes, t, norm)
+
+proc dotRow*(self: QMatrix; vec:var Vector; i: int64): float32 =
+    assert(i >= 0);
+    assert(i < self.m)
+    assert(vec.size() == self.n)
     var norm:float32 = 1
-    # if (qnorm_) {
-    #     norm = npq_->get_centroids(0, norm_codes_[i])[0];
-    # }
-    # return pq_->mulcode(vec, codes_.data(), i, norm);
+    var normPos:uint8
+    if self.qnorm:
+        normPos = (uint8)self.npq.getCentroidsPosition(0'i32, self.norm_codes[i])
+        norm = self.npq.centroids[normPos]
+    self.pq.mulcode(vec, self.codes, i.int32, norm)
+    
 
         
     
