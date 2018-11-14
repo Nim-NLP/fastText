@@ -14,7 +14,7 @@ type
       codesize*:int32
       codes*:seq[uint8]
       norm_codes*:seq[uint8]
-      pq*,npq*:ptr ProductQuantizer
+      pq*,npq*: ProductQuantizer
 
 proc size*(self: Matrix; dim: int64): int64 =
     assert(dim == 0 or dim == 1 )
@@ -78,4 +78,47 @@ proc dotRow*(self: Matrix; vec: Vector; i: int64): float32 {.noSideEffect.} =
     var d:float32 = 0.0
     for j in countup(0'i64,self.n):
         d += self.at(i,j) * vec.get(j.int64)
+
+proc getM*(self: QMatrix): int64 =
+    self.m
+
+proc getN*(self: QMatrix): int64 =
+    self.n
+
+# proc quantizeNorm*(self: var QMatrix; norms: Vector) =
+#     assert(self.qnorm == true)
+#     assert(norms.size() == self.m )
+#     let dataptr =  norms.data()
+#     # npq.train(m_, dataptr)
+#     # npq.compute_codes(dataptr, self.norm_codes.data(), m);
+
+# proc quantize*(self: var QMatrix; matrix: Matrix) =
+#     doassert(self.m == matrix.size(0));
+#     doassert(self.n == matrix.size(1));
+#     let temp  = matrix
+#     # if (self.qnorm) :
+#     #     Vector norms(temp.size(0));
+#     #     temp.l2NormRow(norms);
+#     #     temp.divideRow(norms);
+#     #     quantizeNorm(norms);
+
+#     # auto dataptr = temp.data();
+#     # pq_->train(m_, dataptr);
+#     # pq_->compute_codes(dataptr, codes_.data(), m_);
+proc addToVector*(self: QMatrix; x: var Vector; t: int32) =
+    var norm:float32 = 1
+    # if self.qnorm:
+    #     norm = npq.get_centroids(0, norm_codes_[t])[0]
+    # pq.addcode(x, codes_.data(), t, norm);
+proc dotRow*(self: QMatrix; vec: Vector; i: int64): float32 =
+    doassert(i >= 0);
+    doassert(i < self.m)
+    doassert(vec.size() == self.n)
+    var norm:float32 = 1
+    # if (qnorm_) {
+    #     norm = npq_->get_centroids(0, norm_codes_[i])[0];
+    # }
+    # return pq_->mulcode(vec, codes_.data(), i, norm);
+
+        
     

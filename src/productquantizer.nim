@@ -19,7 +19,6 @@ proc `[]`(self: float32,key:int):uint8 =
     let a: UncheckedArray[uint8] = cast[ UncheckedArray[uint8]](self)
     (uint8)a[key]
 
-
 # proc distL2(x:ptr float32, y:ptr float32,  d:int32):float32 =
 #     var dist:float32  = 0.float32
 #     var i = 0
