@@ -9,14 +9,16 @@ import types
 
 
 
+proc `[]`*(self:ptr float32,key:int):uint8 = 
+  let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
+  (uint8)a[key]
 
-
-# proc distL2(x:ptr float32, y:ptr float32,  d:int32):float32 =
-#     var dist:float32  = 0.float32
-#     var i = 0
-#     while i < d:
-#         dist += ((x[i] - y[i]).int ^ 2).float32
-#     return dist
+proc distL2(x: var Vector;xpost:int; y:ptr float32;  d:int32):float32 =
+    var dist:float32  = 0.float32
+    var i = 0
+    while i < d:
+        dist += ((x[i][] - y[i].float32).int ^ 2).float32
+    return dist
 
 # proc constructProductQuantizer*(): ProductQuantizer {.stdcall, constructor,
 #     importcpp: "fasttext::ProductQuantizer(@)", header: headerproductquantizer.}
@@ -35,42 +37,47 @@ proc initProductQuantizer*(dim: int32; dsub: int32): ProductQuantizer =
 # proc `[]=`(self:ptr uint8,key:int,val:Natural){.discardable.} = 
 #     let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
 #     a[key] = (uint8)val
-# proc get_centroids*(self: ProductQuantizer; m: int32; i: uint8): ptr float32 {.
-#     noSideEffect, stdcall, importcpp: "get_centroids",
-#     header: headerproductquantizer.}
-# proc assign_centroid*(self: ProductQuantizer; x:float32; c0:  float32; code: ptr uint8;d: int32): float32 =
-#     var  c:float32 = c0
-#     var dis:float32 = distL2(x.unsafeAddr, c.addr, d);
-#     code[0] = 0;
-#     var j = 1
-#     var disij:float32
-#     while j < ksub:
-#         c += cast[float32](d)
-#         disij = distL2(x.unsafeAddr, c.addr, d);
-#         if (disij < dis) :
-#             code[0] = (uint8)j;
-#             dis = disij;
-#         inc j
+
+proc assign_centroid*(self: ProductQuantizer; x: var Vector;xpos:int; c0: float32; code: var seq[uint8],codePos:int;d: int32): float32 =
+    var  c:float32 = c0
+    var dis:float32 = distL2(x,xpos, c.addr, d);
+    code[0] = 0;
+    var j = 1
+    var disij:float32
+    while j < ksub:
+        c += cast[float32](d)
+        disij = distL2(x,xpos, c.addr, d);
+        if (disij < dis) :
+            code[0] = (uint8)j;
+            dis = disij;
+        inc j
     
-#     return dis;
+    return dis;
                      
 
-# proc Estep*(self: ProductQuantizer; x: float32; centroids: ptr float32; codes: ptr uint8; d: int32;n: int32) =
-#     var i = 0
-#     var code:uint8
-#     while i < n:
-#         code =  codes[] + i.uint8
-#         discard self.assign_centroid(x + cast[float32](i * d), centroids[],code.addr, d);
-#         inc i
+proc Estep*(self: ProductQuantizer; x: var Vector;xpos:int; centroids:var seq[float32];centroidPos:int32; codes: var seq[uint8];codePos:int32; d: int32;n: int32) =
+    var i = 0
+    while i < n:
+        discard self.assign_centroid(x ,xpos,self.centroids[centroidPos],codes,i, d);
+        inc i
 
-# proc train*(this: var ProductQuantizer; a2: cint; a3: ptr float32) {.stdcall,
-#     importcpp: "train", header: headerproductquantizer.}
+proc train*(self:  ProductQuantizer; n: cint; x: ptr float32) =
+    if n < ksub:
+        raise newException(ValueError,"Matrix too small for quantization, must have at least " & $ksub & " rows")
 
-# proc compute_code*(this: ProductQuantizer; a2: ptr float32; a3: ptr uint8) {.noSideEffect,
-#     stdcall, importcpp: "compute_code", header: headerproductquantizer.}
-# proc compute_codes*(this: ProductQuantizer; a2: ptr float32; a3: ptr uint8; a4: int32) {.
-#     noSideEffect, stdcall, importcpp: "compute_codes",
-#     header: headerproductquantizer.}
+proc compute_code*(self: ProductQuantizer; x: var Vector;xpos:int; code: var seq[uint8],codePos:int) {.noSideEffect.} =
+    var d = self.dsub
+    var i:int32
+    for m in 0..<self.nsubq:
+        if m == self.nsubq - 1:
+            d = self.lastdsub
+        i = self.getCentroidsPosition(m.int32,0'u8)
+        discard self.assign_centroid(x,m * self.dsub,self.centroids[i],code, m.int32 , d)
+
+proc compute_codes*(self: ProductQuantizer; x: var Vector;xpos:int; code: var seq[uint8],codePos:int; n: int32) {.noSideEffect.} =
+    for i in 0..<n:
+        self.compute_code(x,i*self.dim,code,i*self.nsubq)
+    
 # proc save*(this: var ProductQuantizer; a2: var ostream) {.stdcall, importcpp: "save",
 #     header: headerproductquantizer.}
 

@@ -24,13 +24,13 @@ proc initQMatrix*(mat:var Matrix; dsub: int32; qnorm: bool): QMatrix =
         result.npq = initProductQuantizer(1'i32,1'i32)
     result.quantize(mat)
 
-proc quantizeNorm*(self:var QMatrix;norms:Vector) =
+proc quantizeNorm*(self:var QMatrix;norms:var Vector) =
     assert self.qnorm == true
     assert norms.size() == self.m
-    
-    auto dataptr = norms.data();
-    npq_->train(m_, dataptr);
-    npq_->compute_codes(dataptr, norm_codes_.data(), m_);
+
+    # auto dataptr = norms.data();
+    # npq_->train(m_, dataptr);
+    self.npq.compute_codes(self.norms, self.norm_codes, self.m);
 
 
 proc quantize*(self:var QMatrix;matrix:Matrix) =
