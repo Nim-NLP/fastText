@@ -52,6 +52,11 @@ proc loadModel*(self: var FastText; i: var Stream) =
     self.dict = initDictionary(self.args, i)
     var quant_input: bool
     discard i.readData(quant_input.addr, sizeof(bool))
+    if quant_input:
+        self.quant = true
+        self.qinput.load(i)
+    else:
+        self.input.load(i)
     if not quant_input and self.dict.isPruned():
         raise newException(ValueError,
                 """Invalid model file.\n
@@ -59,7 +64,6 @@ proc loadModel*(self: var FastText; i: var Stream) =
                   See issue #332 on Github for more information.\n""")
 
     discard i.readData(self.args.qout.addr, sizeof(bool))
-    debugEcho "self.args.qout",self.args.qout
     if self.quant and self.args.qout:
         self.qoutput.load(i)
     else:

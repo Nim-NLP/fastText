@@ -1,11 +1,19 @@
 import math
-# import ./productquantizer
+import random
 
 type
     ProductQuantizer*  = object
+      nbits*:int32
+      ksub*:int32
+      max_points*:int32
+      eps*:float32
+      niter*:int32
+      max_points_per_cluster*:int32
       dim*,nsubq*,dsub*,lastdsub*:int32
       centroids*: seq[float32]
-      # std::minstd_rand rng;
+      seed*:int32
+      rng*: Rand
+
 type
     Matrix* = object
       idata*:seq[float32]
@@ -149,6 +157,58 @@ proc dotRow*(self: QMatrix; vec:var Vector; i: int64): float32 =
         normPos = (uint8)self.npq.getCentroidsPosition(0'i32, self.norm_codes[i])
         norm = self.npq.centroids[normPos]
     self.pq.mulcode(vec, self.codes, i.int32, norm)
+
+proc l2NormRow*(self:var Matrix; i: int64): float32 {.noSideEffect.} = 
+    var norm:float32 = 0.0
+    for j in 0..<self.n:
+        norm += self.at(i,j)[]
+    
+    if norm == NaN:
+        raise newException(ValueError,"Encountered NaN.")
+    sqrt(norm)
+
+proc l2NormRow*(self:var Matrix; norms: var Vector) {.noSideEffect.} =
+    doassert norms.size == self.m
+    for i in 0..<self.m:
+        norms[i][] = self.l2NormRow(i)
+
+proc addRow*(self: var Matrix; vec: Vector; i: int64; a: float32) =
+    doassert i >= 0
+    doassert i < self.m
+    doassert vec.size == self.n
+    for j in countup(0,self.n.int32):
+        self.idata[ (i * self.n + j).int32 ] += a * vec.get(j)
+
+proc multiplyRow*(self: var Matrix; nums: Vector; ib: int64 = 0; ie: int64 = -1) =
+    var iee = ie
+    if ie == -1:
+        iee = self.m
+    doassert iee <= nums.size
+    var i = ib
+    var n:float32
+    while i < iee:
+        n = nums.get(i - ib)
+        if n != 0:
+            for j in countup(0'i64,self.n):
+                self.at(i,j)[] *= n
+        inc i
+
+
+proc divideRow*(self: var Matrix; denoms: Vector; ib: int64 = 0; ie: int64 = -1) =
+    var iee = ie
+    if ie == -1:
+        iee = self.m
+    doassert iee <= denoms.size
+    var i = ib
+    var n:float32
+    while i < iee:
+        n = denoms.get(i - ib)
+        if n != 0:
+            for j in countup(0'i64,self.n):
+                self.at(i,j)[] /= n
+        inc i 
+
+
     
 
         

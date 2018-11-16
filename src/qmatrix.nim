@@ -4,41 +4,39 @@ import ./types
 import ./vector
 import ./matrix
 import streams
+import strutils
 
 proc quantize*(self: var QMatrix; matrix: Matrix)
-proc quantizeNorm*(self:var QMatrix;norms:Vector)
+proc quantizeNorm*(self:var QMatrix;norms:var Vector)
 
 proc initQMatrix*(): QMatrix =
-    result = QMatrix(qnorm:false,m:0,n:0,codesize:0)
+    result# = QMatrix(qnorm:false,m:0,n:0,codesize:0)
 
 proc initQMatrix*(mat:var Matrix; dsub: int32; qnorm: bool): QMatrix =
-    let 
-        m = mat.size(0)
-        n = mat.size(1)
-    let codesize = m.int32 * ((n.int32 + dsub - 1) div dsub)
-    result = QMatrix(qnorm:false,m:m.int64,n:n,codesize:codesize.int32)
-    result.codes.setLen(codesize)
-    result.pq = initProductQuantizer(n.int32,dsub)
+    result.m = mat.size(0)
+    result.n = mat.size(1)
+    result.codesize = result.m.int32 * ((result.n.int32 + dsub - 1) div dsub)
+    result.codes.setLen(result.codesize)
+    result.pq = initProductQuantizer(result.n.int32,dsub)
+    debugEcho "initQMatrix $# $#" % [$result.m,$result.n]
     if result.qnorm:
-        result.norm_codes.setLen(m)
+        result.norm_codes.setLen(result.m)
         result.npq = initProductQuantizer(1'i32,1'i32)
     result.quantize(mat)
 
 proc quantizeNorm*(self:var QMatrix;norms:var Vector) =
     assert self.qnorm == true
     assert norms.size() == self.m
-
-    # auto dataptr = norms.data();
-    # npq_->train(m_, dataptr);
-    self.npq.compute_codes(self.norms, self.norm_codes, self.m);
-
+    self.npq.train(self.m.int32, norms)
+    self.npq.compute_codes(norms,0'i32, self.norm_codes,0'i32, self.m.int32);
 
 proc quantize*(self:var QMatrix;matrix:Matrix) =
     assert(self.m == matrix.size(0))
     assert(self.n == matrix.size(1))
-    var temp = Matrix(matrix)
+    var temp = matrix
+    var norms:Vector
     if self.qnorm:
-        var norms = initVector(temp.size(0))
+        norms = initVector(temp.size(0))
         temp.l2NormRow(norms)
         temp.divideRow(norms)
         self.quantizeNorm(norms)
@@ -63,10 +61,11 @@ proc load*(self: var QMatrix; a2: var Stream) =
     self.codes = newSeq[uint8](self.codesize)
     for j in 0..<self.codes.len :
         discard a2.readData(self.codes[j].addr, sizeof(uint8))
-    self.pq = ProductQuantizer()
+    self.pq = initProductQuantizer()
     self.pq.load(a2)
     if self.qnorm:
-        for i in 0..<self.norm_codes.len:
+        self.norm_codes.setLen(self.m)
+        for i in 0..<self.m:
             discard a2.readData(self.norm_codes[i].addr, sizeof(uint8))
-        self.npq = ProductQuantizer()
+        self.npq = initProductQuantizer()
         self.npq.load(a2)
