@@ -83,8 +83,8 @@ proc initModel*(wi:ptr  Matrix; wo:ptr Matrix;args: ptr Args; seed: int32): Mode
     result.quant = false
     result.rng = initRand(seed)
     result.wi = wi
+    result.wo = wo
     result.args = args
-    debugEcho "wo[].size(0).int32",wo[].size(0).int32
     result.osz = wo[].size(0).int32
     result.hsz = args[].dim
     result.negpos = 0
@@ -162,7 +162,7 @@ proc softmax*(self: var Model; target: int32; lr: float32): float32  =
     return -self.log(self.output[target][])
 
 proc computeHidden*(self: Model; ipt: seq[int32]; hidden: var Vector) {.noSideEffect.} =
-    doAssert(self.hidden.size == self.hsz)
+    assert(self.hidden.size == self.hsz)
     hidden.zero()
     for i in ipt:
         if self.quant:
@@ -173,21 +173,22 @@ proc computeHidden*(self: Model; ipt: seq[int32]; hidden: var Vector) {.noSideEf
 
 proc dfs*(self: Model; k: int32; threshold: float32; node: int32; score: float32;
          heap: var seq[tuple[first:float32, second:int32]]; hidden: var Vector) {.noSideEffect.} =
-    if score < ln(threshold): return
+    if score < self.stdLog(threshold): return
     if heap.len() == k and score < heap[0].first:
         return 
     if self.tree[node].left == -1 and self.tree[node].right == -1:
         heap.add( (first:score,second:node) )
-        heap.sort(system.cmp)
+        heap.sort do (x, y: tuple[first:float32, second:int32]) -> int: cmp(x[0], y[0])
         if heap.len() > k:
             discard heap.pop()
+        return
     var f:float32
     if self.quant and self.args.qout:
         f = self.qwo[].dotRow(hidden,node - self.osz)
     else:
         f = self.wo[].dotRow(hidden,node - self.osz)
     f =  1.0 / (1 + exp(-f))
-    self.dfs(k,threshold,self.tree[node].left,score + self.stdLog(1.0-f),heap,hidden)
+    self.dfs(k,threshold,self.tree[node].left,score + self.stdLog(1.0 - f),heap,hidden)
     self.dfs(k,threshold,self.tree[node].right,score + self.stdLog(f),heap,hidden)
 
 proc findKBest*(self: Model; k: int32; threshold: float32; heap: var seq[tuple[first:float32, second:int32]];
@@ -208,12 +209,16 @@ proc predict*(self: Model; ipt: seq[int32]; k: int32; threshold: float32;heap: v
     if self.args.model != model_name.sup:
         raise newException(ValueError,"Model needs to be supervised for prediction!")
     heap.setLen(k + 1)
+    debugEcho "computeHidden start"
     self.computeHidden(ipt,hidden[])
+    debugEcho "computeHidden end"
     if self.args.loss == loss_name.hs:
         self.dfs(k,threshold,2 * self.osz - 2, 0.0,heap,hidden[])
+        debugEcho "self.dfs end"
     else:
+        debugEcho "self.findKBest"
         self.findKBest(k,threshold,heap,hidden[],output[])
-    sort(heap,system.cmp)
+    heap.sort do (x, y: tuple[first:float32, second:int32]) -> int: cmp(x[0], y[0])
 
 proc predict*(self:  Model; ipt: seq[int32]; k: int32; threshold: float32;
              heap: var seq[tuple[first:float32, second:int32]]) =
@@ -240,12 +245,13 @@ proc buildTree*(self: var Model; counts: seq[int64]) =
         self.tree[i].parent = -1
         self.tree[i].left = -1;
         self.tree[i].right = -1;
-        self.tree[i].count = 1000000000000000;
-        self.tree[i].binary = false;
+        self.tree[i].count = 1000000000000000
+        self.tree[i].binary = false
     for i in 0..<self.osz:
         self.tree[i].count = counts[i]
-    var leaf,node:int32
-    var mini:seq[int32]
+    var leaf:int32 = self.osz - 1
+    var node:int32 = self.osz
+    var mini = newSeq[int32](2)
     for i in self.osz..<(2 * self.osz - 1 ):
         for j in 0..<2:
             if leaf >= 0 and self.tree[leaf].count < self.tree[node].count:
@@ -254,16 +260,17 @@ proc buildTree*(self: var Model; counts: seq[int64]) =
             else:
                 mini[j] = node
                 inc node
-        self.tree[i].left = mini[0];
-        self.tree[i].right = mini[1];
-        self.tree[i].count = self.tree[mini[0]].count + self.tree[mini[1]].count;
-        self.tree[mini[0]].parent = i;
-        self.tree[mini[1]].parent = i;
-        self.tree[mini[1]].binary = true;
+        self.tree[i].left = mini[0]
+        self.tree[i].right = mini[1]
+        self.tree[i].count = self.tree[mini[0]].count + self.tree[mini[1]].count
+        self.tree[mini[0]].parent = i
+        self.tree[mini[1]].parent = i
+        self.tree[mini[1]].binary = true
     var path:seq[int32]
     var code:seq[bool]
     var j:int32
     for i in 0..<self.osz:
+        j = i.int32
         while self.tree[j].parent != -1:
             path.add(self.tree[j].parent - self.osz)
             code.add(self.tree[j].binary)

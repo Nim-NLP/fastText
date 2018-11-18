@@ -18,7 +18,6 @@ proc initQMatrix*(mat:var Matrix; dsub: int32; qnorm: bool): QMatrix =
     result.codesize = result.m.int32 * ((result.n.int32 + dsub - 1) div dsub)
     result.codes.setLen(result.codesize)
     result.pq = initProductQuantizer(result.n.int32,dsub)
-    debugEcho "initQMatrix $# $#" % [$result.m,$result.n]
     if result.qnorm:
         result.norm_codes.setLen(result.m)
         result.npq = initProductQuantizer(1'i32,1'i32)

@@ -82,11 +82,11 @@ proc rows*(self: Matrix): int64 =
 proc cols*(self: Matrix): int64 = 
     self.n
 
-proc dotRow*(self: Matrix; vec: Vector; i: int64): float32 {.noSideEffect.} =
+proc dotRow*(self: Matrix; vec: Vector; i: int32): float32 {.noSideEffect.} =
     assert i >= 0
     assert i < self.m
     assert vec.size == self.n
-    for j in countup(0'i64,self.n):
+    for j in 0..<self.n:
         result += self.at(i,j) * vec.get(j.int64)
     if classify(result) == math.fcNan:
         raise newException(ValueError,"Encountered NaN.")
@@ -154,8 +154,11 @@ proc dotRow*(self: QMatrix; vec:var Vector; i: int64): float32 =
     var norm:float32 = 1
     var normPos:uint8
     if self.qnorm:
+        debugEcho "getCentroidsPosition start"
         normPos = (uint8)self.npq.getCentroidsPosition(0'i32, self.norm_codes[i])
+        debugEcho "getCentroidsPosition end",normPos
         norm = self.npq.centroids[normPos]
+    debugEcho "mulcode"
     self.pq.mulcode(vec, self.codes, i.int32, norm)
 
 proc l2NormRow*(self:var Matrix; i: int64): float32 {.noSideEffect.} = 

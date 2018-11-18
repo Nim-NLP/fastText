@@ -68,17 +68,12 @@ proc loadModel*(self: var FastText; i: var Stream) =
         self.qoutput.load(i)
     else:
         self.output.load(i)
-    debugEcho "output loaded"
     self.model = initModel(self.input.addr,self.output.addr,self.args.addr,0)
-    debugEcho "initModel"
     self.model.quant = self.quant
     self.model.setQuantizePointer(self.qinput.addr,self.qoutput.addr,self.args.qout)
-    debugEcho "setQuantizePointer"
     if self.args.model == model_name.sup:
-        debugEcho "setTargetCounts 1"
         self.model.setTargetCounts(self.dict.getCounts(entry_type.label))
     else:
-        debugEcho "setTargetCounts 2"
         self.model.setTargetCounts(self.dict.getCounts(entry_type.word))
     debugEcho "load model end"
 
@@ -128,6 +123,7 @@ proc predict*(self: var FastText; i:  Stream; k: int32; print_prob: bool;
 
 # fasttext_pybind.cc interface
 proc predict*(self: var FastText; text: string; k: int32;
-        threshold: float32 ): seq[tuple[first: float32, second: string]] {.noInit.}=
+        threshold: float32 ): seq[tuple[first: float32, second: string]] =
     var stream = (Stream)newStringStream(text)
+    debugEcho "stream end"
     self.predict(stream,k,result,threshold)

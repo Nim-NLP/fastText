@@ -182,12 +182,10 @@ proc compute_codes*(self: ProductQuantizer; x: var Vector;xpos:int32; code: var 
 #     header: headerproductquantizer.}
 
 proc load*(self: var ProductQuantizer; a2: var Stream) =
-    debugEcho "ProductQuantizer load"
     discard a2.readData(self.dim.addr,sizeof(self.dim))
     discard a2.readData(self.nsubq.addr,sizeof(self.nsubq))
     discard a2.readData(self.dsub.addr,sizeof(self.dsub))
     discard a2.readData(self.lastdsub.addr,sizeof(self.lastdsub))
-    debugEcho "ProductQuantizer dim $#" % [$self.dim]
     self.centroids.setLen(self.dim * ksub)
     for i in 0..<self.centroids.len():
         discard a2.readData(self.centroids[i].addr,sizeof(float32))
