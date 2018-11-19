@@ -75,7 +75,7 @@ proc loadModel*(self: var FastText; i: var Stream) =
         self.model.setTargetCounts(self.dict.getCounts(entry_type.label))
     else:
         self.model.setTargetCounts(self.dict.getCounts(entry_type.word))
-    debugEcho "load model end"
+    debugEcho "load model end",self.args
 
 proc loadModel*(self: var FastText; filename: string) =
     var ifs = openFileStream(filename)
@@ -99,7 +99,7 @@ proc predict*(self: var FastText; i:  Stream; k: int32;
     self.model.predict(words, k, threshold, modelPredictions, hidden.addr,
             output.addr)
     for it in modelPredictions:
-        predictions.add( (first: it.first,
+        predictions.add( (first: exp(it.first),
                 second: self.dict.getLabel(it.second)))
 
 proc predict*(self: var FastText; i:  Stream; k: int32; print_prob: bool;

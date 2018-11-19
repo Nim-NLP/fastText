@@ -96,12 +96,12 @@ proc initModel*(wi:ptr  Matrix; wo:ptr Matrix;args: ptr Args; seed: int32): Mode
     result.initLog()
 
 proc sigmoid*(self: Model; x: float32): float32 {.noSideEffect.} =
-    if x < (float32)MAX_SIGMOID:
+    if x < -(float32)MAX_SIGMOID:
         return 0.0
     elif x > (float32)MAX_SIGMOID:
         return 1.0
     else:
-        var i:int32  = int32( float32(x + (float32)MAX_SIGMOID) * float32(SIGMOID_TABLE_SIZE) / float32(MAX_SIGMOID) / 2'f32);
+        var i:int64  = int64( (x + MAX_SIGMOID.float64) * SIGMOID_TABLE_SIZE.float64 / MAX_SIGMOID.float64 / 2)
         return self.t_sigmoid.data[][i]
 
 proc binaryLogistic*(self: var Model; target: int32; label: bool; lr: float64): float32 =
@@ -116,10 +116,10 @@ proc binaryLogistic*(self: var Model; target: int32; label: bool; lr: float64): 
 
 proc getNegative*(self:var Model,target:int32):int32 =
     var negative = self.negatives[self.negpos.int32];
-    self.negpos = (self.negpos + 1) div self.negatives.len.uint32;
+    self.negpos = (self.negpos + 1) mod self.negatives.len.uint32;
     while (target == negative) :
       negative = self.negatives[self.negpos.int32];
-      self.negpos = (self.negpos + 1) div self.negatives.len.uint32
+      self.negpos = (self.negpos + 1) mod self.negatives.len.uint32
     return negative
     
 proc negativeSampling*(self: var Model; target: int32; lr: float64): float32 =
@@ -146,6 +146,15 @@ proc computeOutputSoftmax*(self: Model; hidden: var Vector; output: var Vector) 
         output.mul(self.qwo[],hidden)
     else:
         output.mul(self.wo[],hidden)
+    var max = output.idata[0]
+    var z = 0.0
+    for i in 0..<self.osz:
+        max = max(output.idata[i],max)
+    for i in 0..<self.osz:
+        output.idata[i] = exp(output.idata[i] - max)
+        z += output.idata[i]
+    for i in 0..<self.osz:
+        output.idata[i] = output.idata[i] / z
 
 proc computeOutputSoftmax*(self: var Model) =
     self.computeOutputSoftmax(self.hidden,self.output)
@@ -179,7 +188,7 @@ proc dfs*(self: Model; k: int32; threshold: float32; node: int32; score: float32
     if self.tree[node].left == -1 and self.tree[node].right == -1:
         heap.add( (first:score,second:node) )
         heap.sort do (x, y: tuple[first:float32, second:int32]) -> int: cmp(x[0], y[0])
-        if heap.len() > k:
+        while heap.len() > k:
             discard heap.pop()
         return
     var f:float32
@@ -199,8 +208,8 @@ proc findKBest*(self: Model; k: int32; threshold: float32; heap: var seq[tuple[f
         if heap.len() == k and self.stdLog(output[i][]) < heap[0].first:
             continue
         heap.add( (first:self.stdLog(output[i][]),second:i.int32) )
-        heap.sort(system.cmp)
-        if heap.len > k:
+        heap.sort do (x, y: tuple[first:float32, second:int32]) -> int: cmp(x[0], y[0])
+        while heap.len() > k:
             discard heap.pop()
 
 proc predict*(self: Model; ipt: seq[int32]; k: int32; threshold: float32;heap: var seq[tuple[first:float32, second:int32]]; hidden: ptr Vector; output: ptr Vector) {. noSideEffect.} =
@@ -234,8 +243,7 @@ proc initTableNegatives*(self: var Model; counts: seq[int64]) =
         c = pow(counts[i].float32,0.5'f32)
         for j in 0..<(c * NEGATIVE_TABLE_SIZE / z).int32:
             self.negatives.add(i.int32)
-    
-    self.negatives.shuffle()
+    self.rng.shuffle(self.negatives)
     debugEcho "initTableNegatives shuffle"
 
 proc buildTree*(self: var Model; counts: seq[int64]) =
@@ -282,16 +290,12 @@ proc buildTree*(self: var Model; counts: seq[int64]) =
         code.setLen(0)
             
 proc setTargetCounts*(self: var Model; counts: seq[int64]) =
-    debugEcho "setTargetCounts innner"
-    debugEcho counts.len
-    debugEcho self.osz
     assert(counts.len == self.osz)
-    debugEcho "self.args[].loss",self.args[].loss
     if self.args[].loss == loss_name.ns:
-        debugEcho "initTableNegatives 1"
+        debugEcho "setTargetCounts oss_name.ns initTableNegatives"
         self.initTableNegatives(counts)
     if self.args[].loss == loss_name.hs:
-        debugEcho "buildTree 1"
+        debugEcho "setTargetCounts oss_name.hs buildTree"
         self.buildTree(counts)
 
 

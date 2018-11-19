@@ -141,7 +141,6 @@ proc load*(self: var Args; a2: var Stream) =
     discard a2.readData(addr self.maxn,sizeof(int32))
     discard a2.readData(addr self.lrUpdateRate,sizeof(int32))
     discard a2.readData(addr self.t,sizeof(float64))
-    debugEcho self
 
 {.this: self.}  
 proc dump*(self: Args; a2: var Stream) = 

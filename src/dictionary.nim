@@ -99,17 +99,17 @@ proc computeSubwords*(self: Dictionary; word: string; ngrams: var seq[int32];
         c:uint8
     for i in 0..<word.len():
         ngram.setLen(0)
-        if ( (cast[uint8](word[i]) and 0xC0) == 0x80): continue
+        if ( (uint8(word[i]) and 0xC0) == 0x80): continue
         j = i
         n = 1
         while ( j < word.len() and n <= self.args.maxn):
             ngram.add(word[j])
             inc j
-            while (j < word.len() and (cast[uint8](word[j]) and 0xC0) == 0x80):
+            while (j < word.len() and (uint8(word[j]) and 0xC0) == 0x80):
                 ngram.add(word[j])
                 inc j
             if (n >= self.args.minn and not (n == 1 and (i == 0 or j == word.len()))):
-                h = (int32) self.hash(ngram) mod cast[uint32](self.args.bucket)
+                h =(int32) self.hash(ngram) mod (self.args.bucket).uint32
                 self.pushHash(ngrams, h)
                 # debugEcho ngram
                 if (substrings != nil):
@@ -269,10 +269,8 @@ proc addWordNgrams*(self:Dictionary;line:var seq[int32];hashes:seq[int32];n:int3
         h = (uint64)hashes[i]
         for j in i + 1..<hashes.len:
             if j > i + n:
-                h = h * 116049371 + (uint64)hashes[j]
-                self.pushHash(line,h.int32 mod self.args.bucket.int32)
-            else:
-                continue
+                h = h * 116049371 + hashes[j].uint64
+                self.pushHash(line,(int32)h mod self.args.bucket.uint64)
 
 proc readLineTokens*(self:Dictionary;line:string;words: var seq[string];) =
     var token:string
@@ -290,7 +288,7 @@ proc readLineTokens*(self:Dictionary;line:string;words: var seq[string];) =
     
 proc getLine*(self: Dictionary; i:  Stream; words: var seq[int32];
              labels: var seq[int32]): int32  =
-    var word_hashes:seq[int32]
+    var word_hashes:seq[int32] = @[]
     var token:string
     var ntokens:int32 = 0
     self.reset(i)
@@ -304,21 +302,20 @@ proc getLine*(self: Dictionary; i:  Stream; words: var seq[int32];
     discard i.readLine(line)
     self.readLineTokens(line,tokens)
     for token in tokens:
-        if token == EOS:
-            break
         h = self.hash(token)
         wid = self.getId(token,h)
         typ = if wid < 0 : self.getType(token) else: self.getType(wid)
         inc ntokens
-        # ntokens += token.len.int32
+        debugEcho ntokens,typ
         if typ == entry_type.word:
-            # debugEcho words
             self.addSubwords(words,token,wid)
-            word_hashes.add(h.int32)
+            word_hashes.add(cast[int32](h))
+            debugEcho word_hashes
         elif typ == entry_type.label and wid >= 0:
             labels.add(wid - self.nwords)
+        if token == EOS:
+            break
     self.addWordNgrams(words, word_hashes, self.args.wordNgrams)
-    debugEcho word_hashes
     return ntokens
 
 proc getLine*(self: Dictionary; i:  Stream; words: var seq[int32];rng: var Rand): int32  =
