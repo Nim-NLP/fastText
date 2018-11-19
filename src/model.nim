@@ -104,7 +104,7 @@ proc sigmoid*(self: Model; x: float32): float32 {.noSideEffect.} =
         var i:int32  = int32( float32(x + (float32)MAX_SIGMOID) * float32(SIGMOID_TABLE_SIZE) / float32(MAX_SIGMOID) / 2'f32);
         return self.t_sigmoid.data[][i]
 
-proc binaryLogistic*(self: var Model; target: int32; label: bool; lr: float32): float32 =
+proc binaryLogistic*(self: var Model; target: int32; label: bool; lr: float64): float32 =
     var score = self.sigmoid(self.wo[].dotRow(self.hidden,target))
     var alpha:float32 = lr * float32(label) - score
     self.grad.addRow(self.wo[],target.int64,alpha)
@@ -122,7 +122,7 @@ proc getNegative*(self:var Model,target:int32):int32 =
       self.negpos = (self.negpos + 1) div self.negatives.len.uint32
     return negative
     
-proc negativeSampling*(self: var Model; target: int32; lr: float32): float32 =
+proc negativeSampling*(self: var Model; target: int32; lr: float64): float32 =
     var loss = 0.0
     self.grad.zero()
     for n in 0..self.args.neg:
@@ -132,7 +132,7 @@ proc negativeSampling*(self: var Model; target: int32; lr: float32): float32 =
             loss += self.binaryLogistic(self.getNegative(target),false,lr)
     return loss
 
-proc hierarchicalSoftmax*(self: var Model; target: int32; lr: float32): float32 =
+proc hierarchicalSoftmax*(self: var Model; target: int32; lr: float64): float32 =
     var loss:float32 = 0.0 
     self.grad.zero()
     let binaryCode:ptr seq[bool] = self.codes[target].addr
@@ -150,7 +150,7 @@ proc computeOutputSoftmax*(self: Model; hidden: var Vector; output: var Vector) 
 proc computeOutputSoftmax*(self: var Model) =
     self.computeOutputSoftmax(self.hidden,self.output)
     
-proc softmax*(self: var Model; target: int32; lr: float32): float32  =
+proc softmax*(self: var Model; target: int32; lr: float64): float32  =
     self.grad.zero()
     self.computeOutputSoftmax()
     var label,alpha:float32

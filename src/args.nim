@@ -1,7 +1,7 @@
 import streams
 
 type
-  model_name* = enum
+  model_name*  = enum
     cbow = 1, sg, sup
 
 
@@ -14,7 +14,7 @@ type
   Args* = object
     input* : string
     output* : string
-    lr* : cdouble
+    lr* : float64
     lrUpdateRate* : cint
     dim* : cint
     ws* : cint
@@ -29,7 +29,7 @@ type
     minn*: cint
     maxn* : cint
     thread* : cint
-    t* : cdouble
+    t* : float64
     label* : string
     verbose* : cint
     pretrainedVectors* : string
@@ -124,23 +124,23 @@ proc save*(self: var Args; a2: var Stream) =
     a2.writeData(addr minn,sizeof(int32))
     a2.writeData(addr maxn,sizeof(int32))
     a2.writeData(addr lrUpdateRate,sizeof(int32))
-    a2.writeData(addr t,sizeof(cdouble))
+    a2.writeData(addr t,sizeof(float64))
 
-{.this: self.}                                   
+                                  
 proc load*(self: var Args; a2: var Stream) =
-    discard a2.readData(addr dim,sizeof(int32))
-    discard a2.readData(addr ws,sizeof(int32))
-    discard a2.readData(addr epoch,sizeof(int32))
-    discard a2.readData(addr minCount,sizeof(int32))
-    discard a2.readData(addr neg,sizeof(int32))
-    discard a2.readData(addr wordNgrams,sizeof(int32))
-    discard a2.readData(addr loss,sizeof(int32))
-    discard a2.readData(addr model,sizeof(int32))
-    discard a2.readData(addr bucket,sizeof(int32))
-    discard a2.readData(addr minn,sizeof(int32))
-    discard a2.readData(addr maxn,sizeof(int32))
-    discard a2.readData(addr lrUpdateRate,sizeof(int32))
-    discard a2.readData(addr t,sizeof(cdouble))
+    discard a2.readData(addr self.dim,sizeof(int32))
+    discard a2.readData(addr self.ws,sizeof(int32))
+    discard a2.readData(addr self.epoch,sizeof(int32))
+    discard a2.readData(addr self.minCount,sizeof(int32))
+    discard a2.readData(addr self.neg,sizeof(int32))
+    discard a2.readData(addr self.wordNgrams,sizeof(int32))
+    discard a2.readData(addr self.loss,sizeof(int32))
+    discard a2.readData(addr self.model,sizeof(int32))
+    discard a2.readData(addr self.bucket,sizeof(int32))
+    discard a2.readData(addr self.minn,sizeof(int32))
+    discard a2.readData(addr self.maxn,sizeof(int32))
+    discard a2.readData(addr self.lrUpdateRate,sizeof(int32))
+    discard a2.readData(addr self.t,sizeof(float64))
     debugEcho self
 
 {.this: self.}  

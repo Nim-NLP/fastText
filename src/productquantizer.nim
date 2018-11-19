@@ -50,11 +50,6 @@ proc initProductQuantizer*(dim: int32; dsub: int32): ProductQuantizer =
     else:
         inc result.nsubq
 
-
-# proc `[]=`(self:ptr uint8,key:int,val:Natural){.discardable.} = 
-#     let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
-#     a[key] = (uint8)val
-
 proc assign_centroid*(self: ProductQuantizer; x: var Vector;xpos:int; c0: float32; code: var seq[uint8],codePos:int;d: int32): float32 =
     var  c:float32 = c0
     var dis:float32 = distL2(x,xpos, c.addr, d);
@@ -109,22 +104,19 @@ proc MStep*(self: ProductQuantizer; x0: var Vector;xpos:int;centroids:ptr float3
                 z[j] = (c2[j][].int32 / z1).uint8
         c += d.float32
 
-    randomize()
     var m:int32
-    var j2:int32
     var sign:int32
-    for k in 0..< ksub:
+    var rng1 = self.rng
+    for k in 0..<ksub:
         if (nelts[k] == 0):
             m = 0
-            while (rand(1.0) * (n - ksub).toFloat >= cast[float](nelts[m] - 1)) :
+            while (rng1.rand(1.0) * (n - ksub).toFloat >= cast[float](nelts[m] - 1)) :
                 m = (m + 1) mod ksub
             nimCopyMem(centroids[k.int32 * d],centroids[m*d],sizeof(float32)*d)
-            j2 = 0
-            while j2 < d:
-                sign = (j2 mod 2) * 2 - 1;
-                centroids[k.int32 * d + j2][] += (sign.float32 * self.eps).uint8
-                centroids[m * d + j2][] -= (sign.float32 * self.eps).uint8
-                inc j2
+            for j in 0'i32..<d:
+                sign = (j mod 2) * 2 - 1;
+                centroids[k.int32 * d + j][] += (sign.float32 * self.eps).uint8
+                centroids[m * d + j][] -= (sign.float32 * self.eps).uint8
             
             nelts[k] = nelts[m] div 2
             nelts[m] -= nelts[k]
