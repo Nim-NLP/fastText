@@ -115,51 +115,51 @@ proc getCentroidsPosition*(self:  ProductQuantizer; m: int32; i: uint8): int32 =
     return (m * ksub + cast[int32](i)) * self.dsub
     
 
-proc mulcode*(self: ProductQuantizer; x:var Vector; codes: seq[uint8]; t: int32; alpha: float32): float32 =
+proc mulcode*(self: ProductQuantizer; x:var Vector; codes: seq[uint8];codePos:int32; t: int32; alpha: float32): float32 =
     var res = 0.0'f32
     var d = self.dsub
-    var codePos:int32 = self.nsubq + t
-    var c:int32
+    var codePos:int32 = codePos + self.nsubq * t
+    var cp:int32
     for m in 0..<self.nsubq:
-        c = self.getCentroidsPosition(m.int32,(uint8)codes[m.int32 + codePos ])
+        cp = self.getCentroidsPosition(m.int32,codes[codePos+m])
         if m == self.nsubq - 1 :
             d = self.lastdsub
         for n in 0..<d:
-            res += x[int64(m * self.dsub + n)][] * self.centroids[c*n]
+            res += x[int64(m * self.dsub + n)][] * self.centroids[cp*n]
     result = res * alpha
 
-proc addcode*(self:  ProductQuantizer; x: var Vector; codes: seq[uint8]; t: int32; alpha: float32) =
+proc addcode*(self:  ProductQuantizer; x: var Vector; codes: seq[uint8];codePos:int32; t: int32; alpha: float32) =
     var d = self.dsub
-    var codePos:int32 = self.nsubq * t
-    var c:int32
+    var codePos:int32 = codePos + self.nsubq * t
+    var cp:int32
     for m in 0..<self.nsubq:
-        c = self.getCentroidsPosition(m.int32,(uint8)codes[m.int32 + codePos])
+        cp = self.getCentroidsPosition(m.int32,codes[m + codePos])
         if m == self.nsubq - 1 :
             d = self.lastdsub
         for n in 0..<d:
-            x[m * self.dsub + n][] += (alpha * self.centroids[c+n])
+            x[m * self.dsub + n][] += (alpha * self.centroids[cp+n])
 
 proc addToVector*(self: QMatrix; x: var Vector; t: int32) =
     var norm:float32 = 1
-    var normPos:uint8
+    var normPos:int32
     if self.qnorm:
-        normPos = (uint8)self.npq.getCentroidsPosition(0'i32, self.norm_codes[t])
+        normPos = self.npq.getCentroidsPosition(0'i32, self.norm_codes[t])
         norm = self.npq.centroids[normPos]
-    self.pq.addcode(x, self.codes, t, norm)
+    self.pq.addcode(x,self.codes, normPos, t, norm)
 
 proc dotRow*(self: QMatrix; vec:var Vector; i: int64): float32 =
     assert(i >= 0);
     assert(i < self.m)
     assert(vec.size() == self.n)
     var norm:float32 = 1
-    var normPos:uint8
+    var normPos:int32
     if self.qnorm:
         debugEcho "getCentroidsPosition start"
-        normPos = (uint8)self.npq.getCentroidsPosition(0'i32, self.norm_codes[i])
+        normPos = self.npq.getCentroidsPosition(0'i32, self.norm_codes[i])
         debugEcho "getCentroidsPosition end",normPos
         norm = self.npq.centroids[normPos]
     debugEcho "mulcode"
-    self.pq.mulcode(vec, self.codes, i.int32, norm)
+    self.pq.mulcode(vec,self.codes, normPos, i.int32, norm)
 
 proc l2NormRow*(self:var Matrix; i: int64): float32 {.noSideEffect.} = 
     var norm:float32 = 0.0
@@ -179,7 +179,7 @@ proc addRow*(self: var Matrix; vec: Vector; i: int64; a: float32) =
     doassert i >= 0
     doassert i < self.m
     doassert vec.size == self.n
-    for j in countup(0,self.n.int32):
+    for j in 0..<self.n:
         self.idata[ (i * self.n + j).int32 ] += a * vec.get(j)
 
 proc multiplyRow*(self: var Matrix; nums: Vector; ib: int64 = 0; ie: int64 = -1) =
@@ -192,7 +192,7 @@ proc multiplyRow*(self: var Matrix; nums: Vector; ib: int64 = 0; ie: int64 = -1)
     while i < iee:
         n = nums.get(i - ib)
         if n != 0:
-            for j in countup(0'i64,self.n):
+            for j in 0..<self.n:
                 self.at(i,j)[] *= n
         inc i
 
@@ -207,7 +207,7 @@ proc divideRow*(self: var Matrix; denoms: Vector; ib: int64 = 0; ie: int64 = -1)
     while i < iee:
         n = denoms.get(i - ib)
         if n != 0:
-            for j in countup(0'i64,self.n):
+            for j in 0..<self.n:
                 self.at(i,j)[] /= n
         inc i 
 

@@ -18,6 +18,7 @@ proc initQMatrix*(mat:var Matrix; dsub: int32; qnorm: bool): QMatrix =
     result.codesize = result.m.int32 * ((result.n.int32 + dsub - 1) div dsub)
     result.codes.setLen(result.codesize)
     result.pq = initProductQuantizer(result.n.int32,dsub)
+    result.qnorm = qnorm
     if result.qnorm:
         result.norm_codes.setLen(result.m)
         result.npq = initProductQuantizer(1'i32,1'i32)
@@ -62,6 +63,7 @@ proc load*(self: var QMatrix; a2: var Stream) =
         discard a2.readData(self.codes[j].addr, sizeof(uint8))
     self.pq = initProductQuantizer()
     self.pq.load(a2)
+    debugEcho "self.qnorm",self.qnorm
     if self.qnorm:
         self.norm_codes.setLen(self.m)
         for i in 0..<self.m:
