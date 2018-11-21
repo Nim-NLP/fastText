@@ -58,7 +58,7 @@ proc getLoss*(self: Model): float32 {.noSideEffect.} =
 proc log*(self: Model; x: float32): float32 {.noSideEffect.} =
     if x > 1.0:
         return 0.0
-    var i:int32 = int32(x * LOG_TABLE_SIZE.float32)
+    var i:int64 = int64(x * LOG_TABLE_SIZE.float32)
     return self.t_log.idata[i]
 
 proc stdLog*(self: Model; x: float32): float32 {.noSideEffect.} =
@@ -102,7 +102,7 @@ proc sigmoid*(self: Model; x: float32): float32 {.noSideEffect.} =
         return 1.0
     else:
         var i:int64  = int64( (x + MAX_SIGMOID.float64) * SIGMOID_TABLE_SIZE.float64 / MAX_SIGMOID.float64 / 2)
-        return self.t_sigmoid.data[][i]
+        return self.t_sigmoid.idata[i]
 
 proc binaryLogistic*(self: var Model; target: int32; label: bool; lr: float64): float32 =
     var score = self.sigmoid(self.wo[].dotRow(self.hidden,target))
