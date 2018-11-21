@@ -108,13 +108,14 @@ proc computeSubwords*(self: Dictionary; word: string; ngrams: var seq[int32];
             while (j < word.len() and (uint8(word[j]) and 0xC0) == 0x80):
                 ngram.add(word[j])
                 inc j
+            
             if (n >= self.args.minn and not (n == 1 and (i == 0 or j == word.len()))):
                 h =(int32) self.hash(ngram) mod (self.args.bucket).uint32
                 self.pushHash(ngrams, h)
-                # debugEcho ngram
                 if (substrings != nil):
                     substrings[].add(ngram)
             inc n
+        debugEcho ngram
 
 
 proc initNgrams(self:var Dictionary) =
