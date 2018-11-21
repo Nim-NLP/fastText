@@ -61,12 +61,10 @@ proc initDictionary*(a1:ref Args,stream:var Stream): Dictionary =
 proc initTableDiscard(self:var Dictionary) = 
     self.pdiscard.setLen(self.size)
     var 
-        i = 0
         f:float32
-    while i < self.size:
+    for i in  0..<self.size:
         f = float32(self.words[i].count) / float32(self.ntokens);
         self.pdiscard[i] = sqrt(self.args.t / f) + self.args.t / f
-        inc i
 
 proc pushHash(self: Dictionary;hashes:var seq[int32] ,id:int32) {.noSideEffect.} =
     if (self.pruneidxsize == 0 or id < 0):
@@ -97,6 +95,7 @@ proc computeSubwords*(self: Dictionary; word: string; ngrams: var seq[int32];
         h:int32
         ngram:string
         c:uint8
+    # debugEcho word
     for i in 0..<word.len():
         ngram.setLen(0)
         if ( (uint8(word[i]) and 0xC0) == 0x80): continue
@@ -115,12 +114,13 @@ proc computeSubwords*(self: Dictionary; word: string; ngrams: var seq[int32];
                 if (substrings != nil):
                     substrings[].add(ngram)
             inc n
-        debugEcho ngram
+        # debugEcho ngram
 
 
 proc initNgrams(self:var Dictionary) =
     var 
         word:string
+    
     for i in 0..self.size:
         word = BOW & self.words[i].word & EOW
         self.words[i].subwords.setLen(0)
@@ -266,12 +266,14 @@ proc reset*(self:Dictionary;i:Stream) =
 
 proc addWordNgrams*(self:Dictionary;line:var seq[int32];hashes:seq[int32];n:int32)=
     var h:uint64
+    var j:int
     for i in 0..<hashes.len():
-        h = (uint64)hashes[i]
-        for j in i + 1..<hashes.len:
-            if j > i + n:
-                h = h * 116049371 + hashes[j].uint64
-                self.pushHash(line,(int32)h mod self.args.bucket.uint64)
+        h = hashes[i].uint64
+        j = i + 1
+        while j < hashes.len and j < i + n:
+            h = h * 116049371 + hashes[j].uint64
+            self.pushHash(line,(int32)h mod self.args.bucket.uint64)
+            inc j
 
 proc readLineTokens*(self:Dictionary;line:string;words: var seq[string];) =
     var token:string
