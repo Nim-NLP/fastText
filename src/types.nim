@@ -125,7 +125,7 @@ proc mulcode*(self: ProductQuantizer; x:var Vector; codes: seq[uint8];codePos:in
         if m == self.nsubq - 1 :
             d = self.lastdsub
         for n in 0..<d:
-            res += x[int64(m * self.dsub + n)][] * self.centroids[cp*n]
+            res += x[int64(m * self.dsub + n)][] * self.centroids[cp+n]
     result = res * alpha
 
 proc addcode*(self:  ProductQuantizer; x: var Vector; codes: seq[uint8];codePos:int32; t: int32; alpha: float32) =

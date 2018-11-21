@@ -15,11 +15,8 @@ proc `[]`*(self:ptr float32,key:int):ptr uint8 =
 
 
 proc distL2(x: var Vector;xpost:int; y:ptr float32;  d:int32):float32 =
-    var dist:float32  = 0
-    var i = 0
     for i in 0..<d:
-        dist += ((x[i][] - y[i][].float32).int ^ 2).float32
-    return dist
+        result += ((x[i][] - y[i][].float32).int ^ 2).float32
 
 proc initProductQuantizer*(): ProductQuantizer =
     result.seed = 1234
@@ -86,25 +83,24 @@ proc assign_centroid*(self: ProductQuantizer; x: var Vector;xpos:int; c0: float3
     var code = codes[codePos].addr
     var dis:float32 = distL2(x,xpos, c.addr, d);
     code[] = 0
-    var j = 1
+
     var disij:float32
-    while j < ksub:
+    for j in 1..<self.ksub:
         c += d.float32
-        disij = distL2(x,xpos, c.addr, d);
-        if (disij < dis) :
+        disij = distL2(x,xpos, c.addr, d)
+        if (disij < dis):
             code[] = (uint8)j
             dis = disij
-        inc j
     
     return dis;
 
 proc Estep*(self: ProductQuantizer; x: var Vector;xpos:int; centroidPos:int32; codes: var seq[uint8];codePos:int32; d: int32;n: int32) =
     for i in 0..<n:
-        discard self.assign_centroid(x ,xpos,self.centroids[centroidPos],codes,i, d)
+        discard self.assign_centroid(x ,xpos + i * d,self.centroids[centroidPos],codes,i, d)
 
 proc Estep*(self: ProductQuantizer; x: var Vector;xpos:int;centroids:ptr float32; codes: var seq[uint8];codePos:int32; d: int32;n: int32) =
     for i in 0..<n:
-        discard self.assign_centroid(x ,xpos,centroids[],codes,i, d)
+        discard self.assign_centroid(x ,xpos + i * d,centroids[],codes,i, d)
 
 proc MStep*(self: ProductQuantizer; x0: var Vector;xpos:int;centroidPos:int; codesSeq: var seq[uint8];codePos:int32; d: int32; n: int32) =
     var nelts = newSeq[int32](ksub)
@@ -115,7 +111,7 @@ proc MStep*(self: ProductQuantizer; x0: var Vector;xpos:int;centroidPos:int; cod
     var c:ptr float32
     for i in 0..<n:
         k = codesSeq[i]
-        c = self.centroids[k.int32 * d].unsafeAddr
+        c = self.centroids[centroidPos + k.int32 * d].unsafeAddr
         for j in 0..<d:
             c[j][] += x[j][]
         nelts[k] += 1
@@ -155,6 +151,8 @@ proc kmeans(self:ProductQuantizer;x:var Vector;centeroidPos:int;n:int32;d:int32)
         inc i
     var r = self.rng
     r.shuffle(perm)
+    for i in 0..<self.ksub:
+        nimCopyMem(self.centroids[i.int32 * d].unsafeAddr,perm[i*d].unsafeAddr,sizeof(float32)*d)
     var codes = newSeq[uint8](n)
     for i in 0..<self.niter:
         self.Estep(x,0,c,codes,0,d,n)
@@ -189,11 +187,11 @@ proc compute_code*(self: ProductQuantizer; x: var Vector;xpos:int; code: var seq
         if m == self.nsubq - 1:
             d = self.lastdsub
         i = self.getCentroidsPosition(m.int32,0'u8)
-        discard self.assign_centroid(x,m * self.dsub,self.centroids[i],code, m.int32 , d)
+        discard self.assign_centroid(x,xpos+m * self.dsub,self.centroids[i],code, codePos+m.int32 , d)
 
 proc compute_codes*(self: ProductQuantizer; x: var Vector;xpos:int32; code: var seq[uint8],codePos:int32; n: int32) {.noSideEffect.} =
     for i in 0..<n:
-        self.compute_code(x,i*self.dim,code,i*self.nsubq)
+        self.compute_code(x,xpos + i*self.dim,code,codePos+i*self.nsubq)
     
 # proc save*(this: var ProductQuantizer; a2: var ostream) {.stdcall, importcpp: "save",
 #     header: headerproductquantizer.}
