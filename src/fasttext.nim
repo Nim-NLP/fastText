@@ -13,7 +13,7 @@ const FASTTEXT_FILEFORMAT_MAGIC_INT32 = 793712314'i32
 
 type
     FastText* = object
-        args*: Args
+        args*:ref Args
         dict:  Dictionary
         input:  Matrix
         output:  Matrix
@@ -39,12 +39,12 @@ proc checkModel*(self: var FastText, i: var Stream): bool =
     return true
 
 proc loadModel*(self: var FastText; i: var Stream) =
-    self.args = initArgs()
+    self.args = newArgs()
     self.input = initMatrix()
     self.output = initMatrix()
     self.qinput = initQMatrix()
     self.qoutput = initQMatrix()
-    self.args.load(i)
+    self.args[].load(i)
 
     if self.version == 11 and self.args.model == model_name.sup:
         self.args.maxn = 0
@@ -68,14 +68,14 @@ proc loadModel*(self: var FastText; i: var Stream) =
         self.qoutput.load(i)
     else:
         self.output.load(i)
-    self.model = initModel(self.input.addr,self.output.addr,self.args.addr,0)
+    self.model = initModel(self.input.addr,self.output.addr,self.args,0)
     self.model.quant = self.quant
     self.model.setQuantizePointer(self.qinput.addr,self.qoutput.addr,self.args.qout)
     if self.args.model == model_name.sup:
         self.model.setTargetCounts(self.dict.getCounts(entry_type.label))
     else:
         self.model.setTargetCounts(self.dict.getCounts(entry_type.word))
-    debugEcho "load model end",self.args
+    debugEcho "load model end",self.args[]
 
 proc loadModel*(self: var FastText; filename: string) =
     var ifs = openFileStream(filename)

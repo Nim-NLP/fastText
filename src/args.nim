@@ -68,6 +68,35 @@ proc initArgs*(): Args =
     result.cutoff = 0
     result.dsub = 2
 
+proc newArgs*():ref Args =
+  result = new Args
+  result.lr = 0.05
+  result.dim = 100
+  result.ws = 5
+  result.epoch = 5
+  result.minCount = 5
+  result.minCountLabel = 0
+  result.neg = 5
+  result.wordNgrams = 1
+  result.loss = loss_name.ns
+  result.model = model_name.sg
+  result.bucket = 2000000
+  result.minn = 3
+  result.maxn = 6
+  result.thread = 12
+  result.lrUpdateRate = 100
+  result.t = 1e-4
+  result.label = "__label__"
+  result.verbose = 2
+  result.pretrainedVectors = ""
+  result.saveOutput = false
+
+  result.qout = false
+  result.retrain = false
+  result.qnorm = false
+  result.cutoff = 0
+  result.dsub = 2
+
 func lossToString( ln:loss_name):string =
   case (ln) :
     of loss_name.hs:

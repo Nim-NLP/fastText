@@ -27,7 +27,7 @@ type
     subwords* : seq[int32]
 
   Dictionary*  = object
-    args: Args
+    args:ref Args
     word2int:seq[int32]
     words:seq[entry] 
     pdiscard:seq[float32]
@@ -50,7 +50,7 @@ proc isPruned*(self:var Dictionary):bool =
 
 proc load*(self: var Dictionary; a2: var Stream)
 
-proc initDictionary*(a1: Args,stream:var Stream): Dictionary =
+proc initDictionary*(a1:ref Args,stream:var Stream): Dictionary =
     result.args = a1
     let i:int32 = -1
     result.word2int = newSeq[i](MAX_VOCAB_SIZE)

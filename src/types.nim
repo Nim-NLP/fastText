@@ -24,7 +24,7 @@ type
       codesize*:int32
       codes*:seq[uint8]
       norm_codes*:seq[uint8]
-      pq*,npq*: ProductQuantizer
+      pq*,npq*:ref ProductQuantizer
 
 proc size*(self: Matrix; dim: int64): int64 =
     assert(dim == 0 or dim == 1 )
@@ -51,10 +51,10 @@ proc data*(self: Vector): ptr seq[float32] =
     self.idata.unSafeAddr
 
 proc `[]`*(self: var Vector; i: int64): ptr float32 =
-    result = self.idata[i.int32].addr
+    result = self.idata[i].addr
 
 proc `[]`*(self:  Vector; i: int64): ptr float32 =
-    result = self.idata[i.int32].unsafeAddr
+    result = self.idata[i].unsafeAddr
 # proc `[]=`*(self: var Vector; i: int64,j:float32)  =
 #     self.idata[i] = j
 
@@ -62,19 +62,19 @@ proc `[]`*(self:  Vector; i: int64): ptr float32 =
 #     self.idata[i] = self.idata[i] + j
     
 proc get*(self: Vector; i: int64): float32 =
-    self.idata[i.int32]
+    self.idata[i]
 
-proc data*(self: var Matrix): ptr float32 =
-    self.idata[0].addr
+# proc data*(self: var Matrix): ptr float32 =
+#     self.idata[0].addr
 
-proc data*(self: Matrix): ptr float32 {.noSideEffect.} =
-    self.idata[0].unsafeAddr
+# proc data*(self: Matrix): ptr float32 {.noSideEffect.} =
+#     self.idata[0].unsafeAddr
 
 proc at*(self: Matrix; i: int64; j: int64): float32 {.noSideEffect.} =
-    self.idata[ (i * self.n + j).int32 ]
+    self.idata[ (i * self.n + j) ]
 
 proc at*(self: var Matrix; i: int64; j: int64): ptr float32 =
-    self.idata[ (i * self.n + j).int32 ].unsafeAddr
+    self.idata[ (i * self.n + j) ].unsafeAddr
 
 proc rows*(self: Matrix): int64 =
     self.m
@@ -111,8 +111,8 @@ const eps:float32 = 1e-7.float32;
 
 proc getCentroidsPosition*(self:  ProductQuantizer; m: int32; i: uint8): int32 =
     if (m == self.nsubq - 1) :
-        return m * ksub * self.dsub + cast[int32](i) * self.lastdsub
-    return (m * ksub + cast[int32](i)) * self.dsub
+        return m * ksub * self.dsub + i.int32 * self.lastdsub
+    return (m * ksub + i.int32) * self.dsub
     
 
 proc mulcode*(self: ProductQuantizer; x:var Vector; codes: seq[uint8];codePos:int32; t: int32; alpha: float32): float32 =
@@ -143,9 +143,9 @@ proc addToVector*(self: QMatrix; x: var Vector; t: int32) =
     var norm:float32 = 1
     var normPos:int32
     if self.qnorm:
-        normPos = self.npq.getCentroidsPosition(0'i32, self.norm_codes[t])
+        normPos = self.npq[].getCentroidsPosition(0'i32, self.norm_codes[t])
         norm = self.npq.centroids[normPos]
-    self.pq.addcode(x,self.codes, normPos, t, norm)
+    self.pq[].addcode(x,self.codes, normPos, t, norm)
 
 proc dotRow*(self: QMatrix; vec:var Vector; i: int64): float32 =
     assert(i >= 0);
@@ -155,11 +155,11 @@ proc dotRow*(self: QMatrix; vec:var Vector; i: int64): float32 =
     var normPos:int32
     if self.qnorm:
         debugEcho "getCentroidsPosition start"
-        normPos = self.npq.getCentroidsPosition(0'i32, self.norm_codes[i])
+        normPos = self.npq[].getCentroidsPosition(0'i32, self.norm_codes[i])
         debugEcho "getCentroidsPosition end",normPos
         norm = self.npq.centroids[normPos]
     debugEcho "mulcode"
-    self.pq.mulcode(vec,self.codes, normPos, i.int32, norm)
+    self.pq[].mulcode(vec,self.codes, normPos, i.int32, norm)
 
 proc l2NormRow*(self:var Matrix; i: int64): float32 {.noSideEffect.} = 
     var norm:float32 = 0.0

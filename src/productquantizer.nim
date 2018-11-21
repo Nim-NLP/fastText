@@ -23,16 +23,46 @@ proc distL2(x: var Vector;xpost:int; y:ptr float32;  d:int32):float32 =
 
 proc initProductQuantizer*(): ProductQuantizer =
     result.seed = 1234
+    result.rng = initRand(result.seed)
     result.nbits = 8
     result.ksub = 1'i32 shl result.nbits
     result.max_points_per_cluster = 256
     result.max_points = result.max_points_per_cluster * result.ksub
     result.niter = 25
     result.eps = 1e-7
+    
+proc newProductQuantizer*():ref ProductQuantizer =
+    result = new ProductQuantizer
+    result.seed = 1234
     result.rng = initRand(result.seed)
-
-
+    result.nbits = 8
+    result.ksub = 1'i32 shl result.nbits
+    result.max_points_per_cluster = 256
+    result.max_points = result.max_points_per_cluster * result.ksub
+    result.niter = 25
+    result.eps = 1e-7
+    
 proc initProductQuantizer*(dim: int32; dsub: int32): ProductQuantizer =
+    result.dim = dim
+    result.nsubq = result.dim div result.dsub
+    result.dsub = dsub
+    result.centroids.setLen(dim * ksub)
+    result.seed = 1234
+    result.rng = initRand(result.seed)
+    result.nbits = 8
+    result.ksub = 1'i32 shl result.nbits
+    result.max_points_per_cluster = 256
+    result.max_points = result.max_points_per_cluster * result.ksub
+    result.niter = 25
+    result.eps = 1e-7
+    result.lastdsub = dim mod dsub
+    if (result.lastdsub == 0):
+        result.lastdsub = dsub
+    else:
+        inc result.nsubq
+
+proc newProductQuantizer*(dim: int32; dsub: int32):ref ProductQuantizer =
+    result = new ProductQuantizer
     result.dim = dim
     result.nsubq = result.dim div result.dsub
     result.dsub = dsub

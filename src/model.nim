@@ -26,7 +26,7 @@ type
     wo*:ptr Matrix
     qwi*:ptr QMatrix
     qwo*:ptr QMatrix
-    args*:ptr Args
+    args*:ref Args
     hidden*: Vector
     output*: Vector
     grad*:Vector
@@ -76,7 +76,7 @@ proc initLog*(self:Model) =
         x = ((float32) float32(i) + float32(1e-5)) / (float32) LOG_TABLE_SIZE;
         self.t_sigmoid.data[i] = 1.0'f32 / ln(x)
         
-proc initModel*(wi:ptr  Matrix; wo:ptr Matrix;args: ptr Args; seed: int32): Model =
+proc initModel*(wi:ptr  Matrix; wo:ptr Matrix;args: ref Args; seed: int32): Model =
     result.hidden = initVector(args[].dim)
     result.output = initVector(wo[].size(0))
     result.grad = initVector(args[].dim)
