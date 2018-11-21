@@ -8,7 +8,6 @@ include system/memory
 import types
 import strutils
 
-
 proc `[]`*(self:ptr float32,key:int):ptr uint8 = 
   let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
   a[key].unsafeaddr
@@ -19,39 +18,20 @@ proc distL2(x: var Vector;xpost:int; y:ptr float32;  d:int32):float32 =
         result += ((x[i][] - y[i][].float32).int ^ 2).float32
 
 proc initProductQuantizer*(): ProductQuantizer =
-    result.seed = 1234
-    result.rng = initRand(result.seed)
-    result.nbits = 8
-    result.ksub = 1'i32 shl result.nbits
-    result.max_points_per_cluster = 256
-    result.max_points = result.max_points_per_cluster * result.ksub
-    result.niter = 25
-    result.eps = 1e-7
+    result.rng = initRand(seed)
+    
     
 proc newProductQuantizer*():ref ProductQuantizer =
     result = new ProductQuantizer
-    result.seed = 1234
-    result.rng = initRand(result.seed)
-    result.nbits = 8
-    result.ksub = 1'i32 shl result.nbits
-    result.max_points_per_cluster = 256
-    result.max_points = result.max_points_per_cluster * result.ksub
-    result.niter = 25
-    result.eps = 1e-7
-    
+    result.rng = initRand(seed)
+
 proc initProductQuantizer*(dim: int32; dsub: int32): ProductQuantizer =
     result.dim = dim
     result.nsubq = result.dim div result.dsub
     result.dsub = dsub
     result.centroids.setLen(dim * ksub)
-    result.seed = 1234
-    result.rng = initRand(result.seed)
-    result.nbits = 8
-    result.ksub = 1'i32 shl result.nbits
-    result.max_points_per_cluster = 256
-    result.max_points = result.max_points_per_cluster * result.ksub
-    result.niter = 25
-    result.eps = 1e-7
+   
+    result.rng = initRand(seed)
     result.lastdsub = dim mod dsub
     if (result.lastdsub == 0):
         result.lastdsub = dsub
@@ -64,14 +44,8 @@ proc newProductQuantizer*(dim: int32; dsub: int32):ref ProductQuantizer =
     result.nsubq = result.dim div result.dsub
     result.dsub = dsub
     result.centroids.setLen(dim * ksub)
-    result.seed = 1234
-    result.rng = initRand(result.seed)
-    result.nbits = 8
-    result.ksub = 1'i32 shl result.nbits
-    result.max_points_per_cluster = 256
-    result.max_points = result.max_points_per_cluster * result.ksub
-    result.niter = 25
-    result.eps = 1e-7
+    result.rng = initRand(seed)
+   
     result.lastdsub = dim mod dsub
     if (result.lastdsub == 0):
         result.lastdsub = dsub
@@ -85,7 +59,7 @@ proc assign_centroid*(self: ProductQuantizer; x: var Vector;xpos:int; c0: float3
     code[] = 0
 
     var disij:float32
-    for j in 1..<self.ksub:
+    for j in 1..<ksub:
         c += d.float32
         disij = distL2(x,xpos, c.addr, d)
         if (disij < dis):
@@ -133,11 +107,11 @@ proc MStep*(self: ProductQuantizer; x0: var Vector;xpos:int;centroidPos:int; cod
             m = 0
             while (rng1.rand(1.0) * (n - ksub).toFloat >= cast[float](nelts[m] - 1)) :
                 m = (m + 1) mod ksub
-            nimCopyMem(self.centroids[k.int32 * d].unsafeAddr,self.centroids[m*d].unsafeAddr,sizeof(float32)*d)
+            nimCopyMem(self.centroids[centroidPos+k.int32 * d].unsafeAddr,self.centroids[centroidPos+m*d].unsafeAddr,sizeof(float32)*d)
             for j in 0'i32..<d:
                 sign = (j mod 2) * 2 - 1;
-                self.centroids[k.int32 * d + j].unsafeAddr[] += (sign.float32 * self.eps)
-                self.centroids[m * d + j].unsafeAddr[] -= (sign.float32 * self.eps)
+                self.centroids[centroidPos+k.int32 * d + j].unsafeAddr[] += (sign.float32 * eps)
+                self.centroids[centroidPos+m * d + j].unsafeAddr[] -= (sign.float32 * eps)
             
             nelts[k] = nelts[m] div 2
             nelts[m] -= nelts[k]
@@ -151,10 +125,10 @@ proc kmeans(self:ProductQuantizer;x:var Vector;centeroidPos:int;n:int32;d:int32)
         inc i
     var r = self.rng
     r.shuffle(perm)
-    for i in 0..<self.ksub:
+    for i in 0..<ksub:
         nimCopyMem(self.centroids[i.int32 * d].unsafeAddr,perm[i*d].unsafeAddr,sizeof(float32)*d)
     var codes = newSeq[uint8](n)
-    for i in 0..<self.niter:
+    for i in 0..<niter:
         self.Estep(x,0,c,codes,0,d,n)
         self.MStep(x,0,centeroidPos,codes,0,d,n)
 
@@ -167,7 +141,7 @@ proc train*(self:var ProductQuantizer;n:int32;norms:var Vector) =
     for i in 0'i32..<n:
         perm[i] = i
     var d = self.dsub
-    var np = min(n,self.max_points)
+    var np = min(n,max_points)
     var xslice = initVector(np * self.dsub)
     var i:int32
     for m in 0..<self.nsubq:
@@ -197,10 +171,14 @@ proc compute_codes*(self: ProductQuantizer; x: var Vector;xpos:int32; code: var 
 #     header: headerproductquantizer.}
 
 proc load*(self: var ProductQuantizer; a2: var Stream) =
+    
+
     discard a2.readData(self.dim.addr,sizeof(self.dim))
     discard a2.readData(self.nsubq.addr,sizeof(self.nsubq))
     discard a2.readData(self.dsub.addr,sizeof(self.dsub))
     discard a2.readData(self.lastdsub.addr,sizeof(self.lastdsub))
+    debugEcho self.dim
+    debugEcho self.dim * ksub
     self.centroids.setLen(self.dim * ksub)
     for i in 0..<self.centroids.len():
         discard a2.readData(self.centroids[i].addr,sizeof(float32))

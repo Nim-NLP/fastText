@@ -1,17 +1,20 @@
 import math
 import random
 
+const nbits*:int32 = 8;
+const ksub*:int32 = 1 shl nbits;
+const max_points_per_cluster*:int32 = 256;
+const max_points*:int32 = max_points_per_cluster * ksub
+const seed*:int32 = 1234;
+const niter*:int32 = 25;
+const eps*:float32 = 1e-7.float32;
+
 type
     ProductQuantizer*  = object
-      nbits*:int32
-      ksub*:int32
-      max_points*:int32
-      eps*:float32
-      niter*:int32
-      max_points_per_cluster*:int32
+      
       dim*,nsubq*,dsub*,lastdsub*:int32
       centroids*: seq[float32]
-      seed*:int32
+     
       rng*: Rand
 
 type
@@ -97,14 +100,6 @@ proc getM*(self: QMatrix): int64 =
 proc getN*(self: QMatrix): int64 =
     self.n
 
-const nbits:int32 = 8;
-const ksub*:int32 = 1 shl nbits;
-const max_points_per_cluster:int32 = 256;
-const max_points:int32 = max_points_per_cluster * ksub
-const seed:int32 = 1234;
-const niter:int32 = 25;
-const eps:float32 = 1e-7.float32;
-
 # proc `[]`(self:var uint8,key:int):uint8 = 
 #     let a: UncheckedArray[uint8] = cast[ UncheckedArray[uint8]](self)
 #     (uint8)a[key]
@@ -171,14 +166,14 @@ proc l2NormRow*(self:var Matrix; i: int64): float32 {.noSideEffect.} =
     sqrt(norm)
 
 proc l2NormRow*(self:var Matrix; norms: var Vector) {.noSideEffect.} =
-    doassert norms.size == self.m
+    assert norms.size == self.m
     for i in 0..<self.m:
         norms[i][] = self.l2NormRow(i)
 
 proc addRow*(self: var Matrix; vec: Vector; i: int64; a: float32) =
-    doassert i >= 0
-    doassert i < self.m
-    doassert vec.size == self.n
+    assert i >= 0
+    assert i < self.m
+    assert vec.size == self.n
     for j in 0..<self.n:
         self.idata[ (i * self.n + j).int32 ] += a * vec.get(j)
 
@@ -186,7 +181,7 @@ proc multiplyRow*(self: var Matrix; nums: Vector; ib: int64 = 0; ie: int64 = -1)
     var iee = ie
     if ie == -1:
         iee = self.m
-    doassert iee <= nums.size
+    assert iee <= nums.size
     var i = ib
     var n:float32
     while i < iee:
@@ -201,7 +196,7 @@ proc divideRow*(self: var Matrix; denoms: Vector; ib: int64 = 0; ie: int64 = -1)
     var iee = ie
     if ie == -1:
         iee = self.m
-    doassert iee <= denoms.size
+    assert iee <= denoms.size
     var i = ib
     var n:float32
     while i < iee:

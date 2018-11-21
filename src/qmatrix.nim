@@ -58,7 +58,7 @@ proc load*(self: var QMatrix; a2: var Stream) =
     discard a2.readData(addr self.m,sizeof(int64))
     discard a2.readData(addr self.n,sizeof(int64))
     discard a2.readData(addr self.codesize,sizeof(int32))
-    self.codes = newSeq[uint8](self.codesize)
+    self.codes.setLen(self.codesize)
     for j in 0..<self.codes.len :
         discard a2.readData(self.codes[j].addr, sizeof(uint8))
     self.pq = new ProductQuantizer
