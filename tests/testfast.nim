@@ -20,6 +20,6 @@ assert ft.args.minn == 2
 assert ft.args.maxn == 4
 assert ft.args.bucket == 2000000
 # -0.01967973634600639
-let output = ft.predict(ss,k,threshold)
+let output = ft.predict(ss)
 
 echo output

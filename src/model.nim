@@ -61,17 +61,17 @@ proc log*(self: Model; x: float32): float32 {.noSideEffect.} =
     return self.t_log.idata[i]
 
 proc stdLog*(self: Model; x: float32): float32 {.noSideEffect.} =
-    return (float) ln(x + 1e-5)
+    return  ln(x + 1e-5'f32)
     
 proc initSigmoid*(self:var Model) =
     var x:float32
-    for i in 0..<SIGMOID_TABLE_SIZE:
-        x = ((float32) i * 2 * MAX_SIGMOID) / (float32) SIGMOID_TABLE_SIZE - MAX_SIGMOID
+    for i in 0..SIGMOID_TABLE_SIZE:
+        x = ( i * 2 * MAX_SIGMOID).float32 / (float32) SIGMOID_TABLE_SIZE - MAX_SIGMOID
         self.t_sigmoid.idata[i] = 1.0'f32 / (1.0'f32 + exp(-x))
 
 proc initLog*(self:var Model) =
     var x:float32
-    for i in 0..<LOG_TABLE_SIZE:
+    for i in 0..LOG_TABLE_SIZE:
         x = ((float32) float32(i) + float32(1e-5)) / (float32) LOG_TABLE_SIZE;
         self.t_log.idata[i] = ln(x)
         
@@ -179,6 +179,9 @@ proc computeHidden*(self: Model; ipt: seq[int32]; hidden: var Vector) {.noSideEf
             hidden.addRow(self.wi[],i)
     hidden.mul( 1.0 / ipt.len().float32 )
 
+proc comparePairs*(l,r:tuple[first:float32, second:int32];):int = 
+    (int)cmp(r.first , l.first)
+
 proc dfs*(self: Model; k: int32; threshold: float32; node: int32; score: float32;
          heap: var seq[tuple[first:float32, second:int32]]; hidden: var Vector) {.noSideEffect.} =
     if score < self.stdLog(threshold): return
@@ -186,8 +189,9 @@ proc dfs*(self: Model; k: int32; threshold: float32; node: int32; score: float32
         return 
     if self.tree[node].left == -1 and self.tree[node].right == -1:
         heap.add( (first:score,second:node) )
-        heap.sort do (x, y: tuple[first:float32, second:int32]) -> int: cmp(x[0], y[0])
+        heap.sort(comparePairs)
         if heap.len() > k:
+            discard heap.pop()
             discard heap.pop()
         return
     var f:float32
@@ -207,8 +211,9 @@ proc findKBest*(self: Model; k: int32; threshold: float32; heap: var seq[tuple[f
         if heap.len() == k and self.stdLog(output[i][]) < heap[0].first:
             continue
         heap.add( (first:self.stdLog(output[i][]),second:i.int32) )
-        heap.sort do (x, y: tuple[first:float32, second:int32]) -> int: cmp(x[0], y[0])
-        while heap.len() > k:
+        heap.sort(comparePairs)
+        if heap.len() > k:
+            discard heap.pop()
             discard heap.pop()
 
 proc predict*(self: Model; ipt: seq[int32]; k: int32; threshold: float32;heap: var seq[tuple[first:float32, second:int32]]; hidden: ptr Vector; output: ptr Vector) {. noSideEffect.} =
@@ -226,7 +231,7 @@ proc predict*(self: Model; ipt: seq[int32]; k: int32; threshold: float32;heap: v
     else:
         debugEcho "self.findKBest"
         self.findKBest(k,threshold,heap,hidden[],output[])
-    heap.sort do (x, y: tuple[first:float32, second:int32]) -> int: cmp(x[0], y[0])
+    heap.sort(comparePairs)
 
 proc predict*(self:  Model; ipt: seq[int32]; k: int32; threshold: float32;
              heap: var seq[tuple[first:float32, second:int32]]) =
@@ -277,17 +282,16 @@ proc buildTree*(self: var Model; counts: seq[int64]) =
     var code:seq[bool]
     var j:int32
     for i in 0..<self.osz:
+        path.setLen(0)
+        code.setLen(0)
         j = i.int32
         while self.tree[j].parent != -1:
             path.add(self.tree[j].parent - self.osz)
             code.add(self.tree[j].binary)
             j = self.tree[j].parent
-        
         self.paths.add(path)
         self.codes.add(code)
-        path.setLen(0)
-        code.setLen(0)
-            
+      
 proc setTargetCounts*(self: var Model; counts: seq[int64]) =
     assert(counts.len == self.osz)
     if self.args[].loss == loss_name.ns:

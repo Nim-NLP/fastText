@@ -99,7 +99,7 @@ proc predict*(self: var FastText; i:  Stream; k: int32;
     self.model.predict(words, k, threshold, modelPredictions, hidden.addr,
             output.addr)
     for it in modelPredictions:
-        predictions.add( (first: it.first,
+        predictions.add( (first: exp(it.first),
                 second: self.dict.getLabel(it.second)))
 
 proc predict*(self: var FastText; i:  Stream; k: int32; print_prob: bool;
@@ -122,8 +122,8 @@ proc predict*(self: var FastText; i:  Stream; k: int32; print_prob: bool;
     i.close()
 
 # fasttext_pybind.cc interface
-proc predict*(self: var FastText; text: string; k: int32;
-        threshold: float32 ): seq[tuple[first: float32, second: string]] =
+proc predict*(self: var FastText; text: string; k: int32 = 1;
+        threshold: float32 = 0.0 ): seq[tuple[first: float32, second: string]] =
     var stream = (Stream)newStringStream(text)
     debugEcho "stream end"
     self.predict(stream,k,result,threshold)
