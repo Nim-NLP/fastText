@@ -49,7 +49,6 @@ proc setQuantizePointer*(self:var Model,qwi:ptr QMatrix,qwo:ptr QMatrix,qout:boo
     if qout:
         debugEcho "self.qwo[].getM()",self.qwo[].getM()
         self.osz = self.qwo[].getM().int32
-        
     debugEcho "setQuantizePointer end"
 
 proc getLoss*(self: Model): float32 {.noSideEffect.} =
@@ -64,17 +63,17 @@ proc log*(self: Model; x: float32): float32 {.noSideEffect.} =
 proc stdLog*(self: Model; x: float32): float32 {.noSideEffect.} =
     return (float) ln(x + 1e-5)
     
-proc initSigmoid*(self:Model) =
+proc initSigmoid*(self:var Model) =
     var x:float32
-    for i in 0..<SIGMOID_TABLE_SIZE+1:
+    for i in 0..<SIGMOID_TABLE_SIZE:
         x = ((float32) i * 2 * MAX_SIGMOID) / (float32) SIGMOID_TABLE_SIZE - MAX_SIGMOID
-        self.t_sigmoid.data[i] = 1.0'f32 / exp(-x)
+        self.t_sigmoid.idata[i] = 1.0'f32 / (1.0'f32 + exp(-x))
 
-proc initLog*(self:Model) =
+proc initLog*(self:var Model) =
     var x:float32
-    for i in 0..<LOG_TABLE_SIZE+1:
+    for i in 0..<LOG_TABLE_SIZE:
         x = ((float32) float32(i) + float32(1e-5)) / (float32) LOG_TABLE_SIZE;
-        self.t_sigmoid.data[i] = 1.0'f32 / ln(x)
+        self.t_log.idata[i] = ln(x)
         
 proc initModel*(wi:ptr  Matrix; wo:ptr Matrix;args: ref Args; seed: int32): Model =
     result.hidden = initVector(args[].dim)
@@ -90,8 +89,8 @@ proc initModel*(wi:ptr  Matrix; wo:ptr Matrix;args: ref Args; seed: int32): Mode
     result.negpos = 0
     result.loss = 0.0
     result.nexamples = 1
-    result.t_sigmoid.data[].setLen(SIGMOID_TABLE_SIZE + 1)
-    result.t_log.data[].setLen(LOG_TABLE_SIZE + 1)
+    result.t_sigmoid.idata.setLen(SIGMOID_TABLE_SIZE + 1)
+    result.t_log.idata.setLen(LOG_TABLE_SIZE + 1)
     result.initSigmoid()
     result.initLog()
 

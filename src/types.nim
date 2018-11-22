@@ -47,17 +47,22 @@ proc initVector*(a1: Vector): Vector =
 proc size*(self: Vector): int64 =
     self.idata.len
 
-proc data*(self: var Vector): ptr seq[float32] =
-    addr self.idata
+# proc data*(self: var Vector): ptr float32 =
+#     addr self.idata[0]
 
-proc data*(self: Vector): ptr seq[float32] =
-    self.idata.unSafeAddr
+# proc data*(self: Vector): ptr float32 =
+#     self.idata[0].unSafeAddr
 
 proc `[]`*(self: var Vector; i: int64): ptr float32 =
     result = self.idata[i].addr
 
 proc `[]`*(self:  Vector; i: int64): ptr float32 =
     result = self.idata[i].unsafeAddr
+
+proc `[]`*(self:ptr float32,key:int64):ptr uint8 = 
+    let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
+    a[key].unsafeaddr
+
 # proc `[]=`*(self: var Vector; i: int64,j:float32)  =
 #     self.idata[i] = j
 
@@ -99,10 +104,6 @@ proc getM*(self: QMatrix): int64 =
 
 proc getN*(self: QMatrix): int64 =
     self.n
-
-proc `[]`*(self:ptr float32,key:int):ptr uint8 = 
-    let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
-    a[key].unsafeaddr
 
 proc getCentroidsPosition*(self:  ProductQuantizer; m: int32; i: uint8): int32 =
     if (m == self.nsubq - 1) :

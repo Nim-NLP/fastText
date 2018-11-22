@@ -8,11 +8,6 @@ include system/memory
 import types
 import strutils
 
-proc `[]`*(self:ptr float32,key:int):ptr uint8 = 
-  let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
-  a[key].unsafeaddr
-
-
 proc distL2(x: var Vector;xpos:int; y:ptr float32;  d:int32):float32 =
     var xv = x[xpos]
     for i in 0..<d:
