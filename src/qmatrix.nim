@@ -61,12 +61,12 @@ proc load*(self: var QMatrix; a2: var Stream) =
     self.codes.setLen(self.codesize)
     for j in 0..<self.codes.len :
         discard a2.readData(self.codes[j].addr, sizeof(uint8))
-    self.pq = new ProductQuantizer
+    self.pq = newProductQuantizer()
     self.pq[].load(a2)
     debugEcho "self.qnorm",self.qnorm
     if self.qnorm:
         self.norm_codes.setLen(self.m)
         for i in 0..<self.m:
             discard a2.readData(self.norm_codes[i].addr, sizeof(uint8))
-        self.npq = new ProductQuantizer
+        self.npq = newProductQuantizer()
         self.npq[].load(a2)

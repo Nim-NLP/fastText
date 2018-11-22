@@ -15,8 +15,7 @@ proc distL2(x: var Vector;xpos:int; y:ptr float32;  d:int32):float32 =
 
 proc initProductQuantizer*(): ProductQuantizer =
     result.rng = initRand(seed)
-    
-    
+
 proc newProductQuantizer*():ref ProductQuantizer =
     result = new ProductQuantizer
     result.rng = initRand(seed)
@@ -48,28 +47,25 @@ proc newProductQuantizer*(dim: int32; dsub: int32):ref ProductQuantizer =
     else:
         inc result.nsubq
 
-proc assign_centroid*(self: ProductQuantizer; x: var Vector;xpos:int; c0: float32; codes: var seq[uint8],codePos:int;d: int32): float32 =
-    var  c:float32 = c0
+proc assign_centroid*(self: ProductQuantizer; x: var Vector;xpos:int; c0: seq[float32];c0Pos:int; codes: var seq[uint8],codePos:int;d: int32): float32 =
+    var  c:float32 = c0[c0Pos]
     var code = codes[codePos].addr
     var dis:float32 = distL2(x,xpos, c.addr, d)
     code[] = 0
 
     var disij:float32
+    var cp:int
     for j in 1..<ksub:
-        c += d.float32
-        disij = distL2(x,xpos, c.addr, d)
+        cp += d
+        disij = distL2(x,xpos, c0[cp].unsafeAddr, d)
         if (disij < dis):
             code[] = (uint8)j
             dis = disij
     return dis
 
-proc Estep*(self: ProductQuantizer; x: var Vector;xpos:int; centroidPos:int32; codes: var seq[uint8];codePos:int32; d: int32;n: int32) =
+proc Estep*(self: ProductQuantizer; x: var Vector;xpos:int32; centroidPos:int; codes: var seq[uint8];codePos:int32; d: int32;n: int32) =
     for i in 0..<n:
-        discard self.assign_centroid(x ,xpos + i * d,self.centroids[centroidPos],codes,i, d)
-
-proc Estep*(self: ProductQuantizer; x: var Vector;xpos:int;centroids:ptr float32; codes: var seq[uint8];codePos:int32; d: int32;n: int32) =
-    for i in 0..<n:
-        discard self.assign_centroid(x ,xpos + i * d,centroids[],codes,i, d)
+        discard self.assign_centroid(x ,xpos + i * d,self.centroids,centroidPos,codes,i, d)
 
 proc MStep*(self: ProductQuantizer; x0: var Vector;xpos:int;centroidPos:int; codesSeq: var seq[uint8];codePos:int32; d: int32; n: int32) =
     var nelts = newSeq[int32](ksub)
@@ -113,7 +109,7 @@ proc MStep*(self: ProductQuantizer; x0: var Vector;xpos:int;centroidPos:int; cod
 
 proc kmeans(self:ProductQuantizer;x:var Vector;centeroidPos:int;n:int32;d:int32) =
     var perm = newSeq[int32](n)
-    var c = self.centroids[centeroidPos].unsafeAddr
+    # var c = self.centroids[centeroidPos].unsafeAddr
     var i = 0'i32
     while i < n:
         perm[i] = i
@@ -124,7 +120,7 @@ proc kmeans(self:ProductQuantizer;x:var Vector;centeroidPos:int;n:int32;d:int32)
         nimCopyMem(self.centroids[i.int32 * d].unsafeAddr,perm[i*d].unsafeAddr,sizeof(float32)*d)
     var codes = newSeq[uint8](n)
     for i in 0..<niter:
-        self.Estep(x,0,c,codes,0,d,n)
+        self.Estep(x,0,centeroidPos,codes,0,d,n)
         self.MStep(x,0,centeroidPos,codes,0,d,n)
 
 
@@ -156,7 +152,7 @@ proc compute_code*(self: ProductQuantizer; x: var Vector;xpos:int; code: var seq
         if m == self.nsubq - 1:
             d = self.lastdsub
         i = self.getCentroidsPosition(m.int32,0'u8)
-        discard self.assign_centroid(x,xpos+m * self.dsub,self.centroids[i],code, codePos+m.int32 , d)
+        discard self.assign_centroid(x,xpos+m * self.dsub,self.centroids,i,code, codePos+m.int32 , d)
 
 proc compute_codes*(self: ProductQuantizer; x: var Vector;xpos:int32; code: var seq[uint8],codePos:int32; n: int32) {.noSideEffect.} =
     for i in 0..<n:
@@ -166,14 +162,10 @@ proc compute_codes*(self: ProductQuantizer; x: var Vector;xpos:int32; code: var 
 #     header: headerproductquantizer.}
 
 proc load*(self: var ProductQuantizer; a2: var Stream) =
-    
-
     discard a2.readData(self.dim.addr,sizeof(self.dim))
     discard a2.readData(self.nsubq.addr,sizeof(self.nsubq))
     discard a2.readData(self.dsub.addr,sizeof(self.dsub))
     discard a2.readData(self.lastdsub.addr,sizeof(self.lastdsub))
-    debugEcho self.dim
-    debugEcho self.dim * ksub
     self.centroids.setLen(self.dim * ksub)
     for i in 0..<self.centroids.len():
         discard a2.readData(self.centroids[i].addr,sizeof(float32))

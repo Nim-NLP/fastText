@@ -94,8 +94,7 @@ proc computeSubwords*(self: Dictionary; word: string; ngrams: var seq[int32];
         n:int
         h:int32
         ngram:string
-        c:uint8
-    # debugEcho word
+    # debugEcho self.pruneidx
     for i in 0..<word.len():
         ngram.setLen(0)
         if ( (uint8(word[i]) and 0xC0) == 0x80): continue
@@ -109,12 +108,13 @@ proc computeSubwords*(self: Dictionary; word: string; ngrams: var seq[int32];
                 inc j
             
             if (n >= self.args.minn and not (n == 1 and (i == 0 or j == word.len()))):
-                h =(int32) self.hash(ngram) mod (self.args.bucket).uint32
+                h = int32(self.hash(ngram) mod (self.args.bucket).uint32)
+                debugEcho ngram
                 self.pushHash(ngrams, h)
                 if (substrings != nil):
                     substrings[].add(ngram)
             inc n
-        # debugEcho ngram
+        
 
 
 proc initNgrams(self:var Dictionary) =
@@ -274,7 +274,8 @@ proc addWordNgrams*(self:Dictionary;line:var seq[int32];hashes:seq[int32];n:int3
         j = i + 1
         while j < hashes.len and j < i + n:
             h = h * 116049371 + hashes[j].uint64
-            self.pushHash(line,(int32)h mod self.args.bucket.uint64)
+            debugEcho int32(h mod self.args.bucket.uint64)
+            self.pushHash(line,int32(h mod self.args.bucket.uint64))
             inc j
 
 proc readLineTokens*(self:Dictionary;line:string;words: var seq[string];) =
