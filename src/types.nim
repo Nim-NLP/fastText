@@ -64,7 +64,7 @@ proc `[]`*(self:  Vector; i: int64): ptr float32 =
 # proc `[]+=`*(self: var Vector; i: int64,j:float32)  =
 #     self.idata[i] = self.idata[i] + j
     
-proc get*(self: Vector; i: int64): float32 =
+proc get*(self:var Vector; i: int64): float32 =
     self.idata[i]
 
 # proc data*(self: var Matrix): ptr float32 =
@@ -85,7 +85,7 @@ proc rows*(self: Matrix): int64 =
 proc cols*(self: Matrix): int64 = 
     self.n
 
-proc dotRow*(self: Matrix; vec: Vector; i: int32): float32 {.noSideEffect.} =
+proc dotRow*(self: Matrix; vec:var Vector; i: int32): float32 {.noSideEffect.} =
     assert i >= 0
     assert i < self.m
     assert vec.size == self.n
@@ -144,7 +144,8 @@ proc addToVector*(self: QMatrix; x: var Vector; t: int32) =
     if self.qnorm:
         normPos = self.npq[].getCentroidsPosition(0'i32, self.norm_codes[t])
         norm = self.npq.centroids[normPos]
-    self.pq[].addcode(x,self.codes, normPos, t, norm)
+    self.pq[].addcode(x,self.codes,0, t, norm)
+    # pq_->addcode(x, codes_.data(), t, norm);
 
 proc dotRow*(self: QMatrix; vec:var Vector; i: int64): float32 =
     assert(i >= 0);
@@ -158,7 +159,7 @@ proc dotRow*(self: QMatrix; vec:var Vector; i: int64): float32 =
         debugEcho "getCentroidsPosition end",normPos
         norm = self.npq.centroids[normPos]
     debugEcho "mulcode"
-    self.pq[].mulcode(vec,self.codes, normPos, i.int32, norm)
+    self.pq[].mulcode(vec,self.codes, 0, i.int32, norm)
 
 proc l2NormRow*(self:var Matrix; i: int64): float32 {.noSideEffect.} = 
     var norm:float32 = 0.0
@@ -174,14 +175,14 @@ proc l2NormRow*(self:var Matrix; norms: var Vector) {.noSideEffect.} =
     for i in 0..<self.m:
         norms[i][] = self.l2NormRow(i)
 
-proc addRow*(self: var Matrix; vec: Vector; i: int64; a: float32) =
+proc addRow*(self: var Matrix; vec: var Vector; i: int64; a: float32) =
     assert i >= 0
     assert i < self.m
     assert vec.size == self.n
     for j in 0..<self.n:
         self.idata[ (i * self.n + j).int32 ] += a * vec.get(j)
 
-proc multiplyRow*(self: var Matrix; nums: Vector; ib: int64 = 0; ie: int64 = -1) =
+proc multiplyRow*(self: var Matrix; nums:var Vector; ib: int64 = 0; ie: int64 = -1) =
     var iee = ie
     if ie == -1:
         iee = self.m
@@ -196,7 +197,7 @@ proc multiplyRow*(self: var Matrix; nums: Vector; ib: int64 = 0; ie: int64 = -1)
         inc i
 
 
-proc divideRow*(self: var Matrix; denoms: Vector; ib: int64 = 0; ie: int64 = -1) =
+proc divideRow*(self: var Matrix; denoms:var Vector; ib: int64 = 0; ie: int64 = -1) =
     var iee = ie
     if ie == -1:
         iee = self.m
