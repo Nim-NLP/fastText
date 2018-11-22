@@ -188,7 +188,7 @@ proc dfs*(self: Model; k: int32; threshold: float32; node: int32; score: float32
     if self.tree[node].left == -1 and self.tree[node].right == -1:
         heap.add( (first:score,second:node) )
         heap.sort do (x, y: tuple[first:float32, second:int32]) -> int: cmp(x[0], y[0])
-        while heap.len() > k:
+        if heap.len() > k:
             discard heap.pop()
         return
     var f:float32

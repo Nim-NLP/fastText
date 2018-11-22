@@ -100,9 +100,9 @@ proc getM*(self: QMatrix): int64 =
 proc getN*(self: QMatrix): int64 =
     self.n
 
-# proc `[]`(self:var uint8,key:int):uint8 = 
-#     let a: UncheckedArray[uint8] = cast[ UncheckedArray[uint8]](self)
-#     (uint8)a[key]
+proc `[]`*(self:ptr float32,key:int):ptr uint8 = 
+    let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
+    a[key].unsafeaddr
 
 proc getCentroidsPosition*(self:  ProductQuantizer; m: int32; i: uint8): int32 =
     if (m == self.nsubq - 1) :
@@ -111,28 +111,32 @@ proc getCentroidsPosition*(self:  ProductQuantizer; m: int32; i: uint8): int32 =
     
 
 proc mulcode*(self: ProductQuantizer; x:var Vector; codes: seq[uint8];codePos:int32; t: int32; alpha: float32): float32 =
-    var res = 0.0'f32
+ 
     var d = self.dsub
-    var codePos:int32 = codePos + self.nsubq * t
+    var codePos1:int32 = codePos + self.nsubq * t
     var cp:int32
+    var cv:float32
     for m in 0..<self.nsubq:
-        cp = self.getCentroidsPosition(m.int32,codes[codePos+m])
+        cp = self.getCentroidsPosition(m.int32,codes[codePos1+m])
+        cv = self.centroids[cp]
         if m == self.nsubq - 1 :
             d = self.lastdsub
         for n in 0..<d:
-            res += x[int64(m * self.dsub + n)][] * self.centroids[cp+n]
-    result = res * alpha
+            result += x[int64(m * self.dsub + n)][] * cv.addr[n][].float32
+    result = result * alpha
 
 proc addcode*(self:  ProductQuantizer; x: var Vector; codes: seq[uint8];codePos:int32; t: int32; alpha: float32) =
     var d = self.dsub
-    var codePos:int32 = codePos + self.nsubq * t
+    var codePos1:int32 = codePos + self.nsubq * t
     var cp:int32
+    var cv:float32
     for m in 0..<self.nsubq:
-        cp = self.getCentroidsPosition(m.int32,codes[m + codePos])
+        cp = self.getCentroidsPosition(m.int32,codes[codePos1+m])
+        cv = self.centroids[cp]
         if m == self.nsubq - 1 :
             d = self.lastdsub
         for n in 0..<d:
-            x[m * self.dsub + n][] += (alpha * self.centroids[cp+n])
+            x[m * self.dsub + n][] += (alpha * cv.addr[n][].float32)
 
 proc addToVector*(self: QMatrix; x: var Vector; t: int32) =
     var norm:float32 = 1

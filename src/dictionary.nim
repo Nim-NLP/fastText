@@ -110,6 +110,7 @@ proc computeSubwords*(self: Dictionary; word: string; ngrams: var seq[int32];
             
             if (n >= self.args.minn and not (n == 1 and (i == 0 or j == word.len()))):
                 h =(int32) self.hash(ngram) mod (self.args.bucket).uint32
+                # debugEcho ngram
                 self.pushHash(ngrams, h)
                 if (substrings != nil):
                     substrings[].add(ngram)
@@ -121,9 +122,9 @@ proc initNgrams(self:var Dictionary) =
     var 
         word:string
     
-    for i in 0..self.size:
+    for i in 0'i32..<self.size:
         word = BOW & self.words[i].word & EOW
-        self.words[i].subwords.setLen(0)
+        # self.words[i].subwords.setLen(0)
         self.words[i].subwords.add(i)
         if (self.words[i].word != EOS):
             self.computeSubwords(word, self.words[i].subwords)
@@ -140,7 +141,6 @@ proc find(self: Dictionary,w:string):int32 {.noSideEffect.} =
     return self.find(w, self.hash(w));
 
 proc load*(self: var Dictionary; a2: var Stream) =
-    self.words.setLen(0)
     discard a2.readData(addr self.size,sizeof(int32))
     discard a2.readData(addr self.nwords,sizeof(int32))
     discard a2.readData(addr self.nlabels,sizeof(int32))
@@ -157,7 +157,7 @@ proc load*(self: var Dictionary; a2: var Stream) =
         e.word =  cast[string](s)
         discard a2.readData(addr e.count,sizeof(int64))
         discard a2.readData(addr e.entry_type,sizeof(int8))
-        self.words.add(e)
+        self.words[i] = e
     self.pruneidx.clear();
     var 
         first:int32
@@ -169,7 +169,9 @@ proc load*(self: var Dictionary; a2: var Stream) =
     self.initTableDiscard()
     self.initNgrams()
     let word2intsize = ceil(self.size.float32 / 0.7'f32).toInt
-    self.word2int[word2intsize] = -1'i32
+    self.word2int.setLen(word2intsize)
+    for i in 0..<word2intsize:
+        self.word2int[i] = -1'i32
     var j = 0'i32
     while j < self.size:
         self.word2int[self.find(self.words[j].word)] = j;
@@ -255,9 +257,10 @@ proc addSubwords*(self:Dictionary; line:var seq[int32]; token:string; wid:int32)
             line.add(wid)
         else:
             let ngrams = self.getSubwords(wid)
-            for gram in ngrams:
-                # line[^2] = gram
-                line.add gram
+            debugEcho line
+            let pos = max(line.len - 2 , 0)
+            line.insert(ngrams,pos)
+            debugEcho line
 
 proc reset*(self:Dictionary;i:Stream) =
     if i.atEnd():

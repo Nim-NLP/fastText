@@ -6,7 +6,7 @@ import ./matrix
 import ./qmatrix
 
 proc zero*(self: var Vector) =
-    for i in 0..<self.idata.len:
+    for i in 0..<self.size():
         self.idata[i] = 0.0
 
 proc mul*(self: var Vector; a: float32) =

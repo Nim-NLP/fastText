@@ -13,9 +13,10 @@ proc `[]`*(self:ptr float32,key:int):ptr uint8 =
   a[key].unsafeaddr
 
 
-proc distL2(x: var Vector;xpost:int; y:ptr float32;  d:int32):float32 =
+proc distL2(x: var Vector;xpos:int; y:ptr float32;  d:int32):float32 =
+    var xv = x[xpos]
     for i in 0..<d:
-        result += ((x[i][] - y[i][].float32).int ^ 2).float32
+        result += ((xv[i][] - y[i][]).int ^ 2).float32
 
 proc initProductQuantizer*(): ProductQuantizer =
     result.rng = initRand(seed)
@@ -55,7 +56,7 @@ proc newProductQuantizer*(dim: int32; dsub: int32):ref ProductQuantizer =
 proc assign_centroid*(self: ProductQuantizer; x: var Vector;xpos:int; c0: float32; codes: var seq[uint8],codePos:int;d: int32): float32 =
     var  c:float32 = c0
     var code = codes[codePos].addr
-    var dis:float32 = distL2(x,xpos, c.addr, d);
+    var dis:float32 = distL2(x,xpos, c.addr, d)
     code[] = 0
 
     var disij:float32
@@ -65,8 +66,7 @@ proc assign_centroid*(self: ProductQuantizer; x: var Vector;xpos:int; c0: float3
         if (disij < dis):
             code[] = (uint8)j
             dis = disij
-    
-    return dis;
+    return dis
 
 proc Estep*(self: ProductQuantizer; x: var Vector;xpos:int; centroidPos:int32; codes: var seq[uint8];codePos:int32; d: int32;n: int32) =
     for i in 0..<n:

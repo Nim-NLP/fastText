@@ -7,7 +7,7 @@ ft.loadModel("tests" / "lid.176.ftz")
 
 var 
     print_prob = false
-    k:int32 = 1
+    k:int32 = 5
     threshold:float32 = 0.0
     # output:seq[tuple[first:float32, second:string]]
     ss = "അമ്മ"
