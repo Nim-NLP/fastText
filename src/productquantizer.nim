@@ -11,7 +11,7 @@ import strutils
 proc distL2(x: var Vector;xpos:int; y:ptr float32;  d:int32):float32 =
     var xv = x[xpos]
     for i in 0..<d:
-        result += ((xv[i][] - y[i][]).int ^ 2).float32
+        result += ((xv[i][] - y[i][]) ^ 2)
 
 proc initProductQuantizer*(): ProductQuantizer =
     result.rng = initRand(seed)
@@ -87,7 +87,7 @@ proc MStep*(self: ProductQuantizer; x0: var Vector;xpos:int;centroidPos:int; cod
         z = nelts[k]
         if (z != 0) :
             for j in 0..<d:
-                c2[j][] = (c2[j][].int32 / z).uint8
+                c2[j][] = (c2[j][].int32 / z)
         c2[] += d.float32
 
     var m:int32

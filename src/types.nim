@@ -59,8 +59,8 @@ proc `[]`*(self: var Vector; i: int64): ptr float32 =
 proc `[]`*(self:  Vector; i: int64): ptr float32 =
     result = self.idata[i].unsafeAddr
 
-proc `[]`*(self:ptr float32,key:int64):ptr uint8 = 
-    let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
+proc `[]`*(self:ptr float32,key:int64):ptr float32 = 
+    let a:ptr UncheckedArray[float32] = cast[ptr UncheckedArray[float32]](self)
     a[key].unsafeaddr
 
 # proc `[]=`*(self: var Vector; i: int64,j:float32)  =
