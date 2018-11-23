@@ -8,10 +8,9 @@ include system/memory
 import types
 import strutils
 
-proc distL2(x: var Vector;xpos:int; y:ptr float32;  d:int32):float32 =
-    var xv = x[xpos]
+proc distL2(x:ptr float32; y:ptr float32;  d:int32):float32 =
     for i in 0..<d:
-        result += ((xv[i][] - y[i][]) ^ 2)
+        result += ((x[i][] - y[i][]) ^ 2)
 
 proc initProductQuantizer*(): ProductQuantizer =
     result.rng = initRand(seed)
@@ -47,41 +46,39 @@ proc newProductQuantizer*(dim: int32; dsub: int32):ref ProductQuantizer =
     else:
         inc result.nsubq
 
-proc assign_centroid*(self: ProductQuantizer; x: var Vector;xpos:int; c0: seq[float32];c0Pos:int; codes: var seq[uint8],codePos:int;d: int32): float32 =
-    var  c:float32 = c0[c0Pos]
-    var code = codes[codePos].addr
-    var dis:float32 = distL2(x,xpos, c.addr, d)
+proc assign_centroid*(self: ProductQuantizer; x: ptr float32; c0:ptr float32;code:ptr uint8;d: int32): float32 =
+    var  c = c0
+    var dis:float32 = distL2(x, c, d)
     code[] = 0
-
     var disij:float32
     var cp:int
     for j in 1..<ksub:
-        cp += d
-        disij = distL2(x,xpos, c0[cp].unsafeAddr, d)
+        c = c[d]
+        disij = distL2(x,c, d)
         if (disij < dis):
             code[] = (uint8)j
             dis = disij
     return dis
 
-proc Estep*(self: ProductQuantizer; x: var Vector;xpos:int32; centroidPos:int; codes: var seq[uint8];codePos:int32; d: int32;n: int32) =
+proc Estep*(self: ProductQuantizer; x: ptr float32;centroids:ptr float32; codes: ptr uint8; d: int32;n: int32) =
     for i in 0..<n:
-        discard self.assign_centroid(x ,xpos + i * d,self.centroids,centroidPos,codes,i, d)
+        discard self.assign_centroid(x[i * d] ,centroids,codes[i], d)
 
-proc MStep*(self: ProductQuantizer; x0: var Vector;xpos:int;centroidPos:int; codesSeq: var seq[uint8];codePos:int32; d: int32; n: int32) =
+proc MStep*(self: ProductQuantizer; x0: ptr float32;centroids:ptr float32;codes:ptr uint8; d: int32; n: int32) =
     var nelts = newSeq[int32](ksub)
-    var codes = codesSeq[codePos].addr
-    nimSetMem(self.centroids[centroidPos].unsafeAddr, 0, sizeof(float32) * d * ksub)
+    
+    nimSetMem(centroids, 0, sizeof(float32) * d * ksub)
     var x:ptr float32 = x0[0]
-    var k:uint8
+    var k:ptr uint8
     var c:ptr float32
     for i in 0..<n:
-        k = codesSeq[i]
-        c = self.centroids[centroidPos + k.int32 * d].unsafeAddr
+        k = codes[i]
+        c = centroids[k[].int32 * d]
         for j in 0..<d:
             c[j][] += x[j][]
-        nelts[k] += 1
+        nelts[k[]] += 1
         x[] += d.float32
-    var c2 = self.centroids[centroidPos].unsafeAddr
+    var c2 = centroids
     var z:int32
     for k in 0..<ksub:
         z = nelts[k]
@@ -98,18 +95,17 @@ proc MStep*(self: ProductQuantizer; x0: var Vector;xpos:int;centroidPos:int; cod
             m = 0
             while (rng1.rand(1.0) * (n - ksub).toFloat >= cast[float](nelts[m] - 1)) :
                 m = (m + 1) mod ksub
-            nimCopyMem(self.centroids[centroidPos+k.int32 * d].unsafeAddr,self.centroids[centroidPos+m*d].unsafeAddr,sizeof(float32)*d)
+            nimCopyMem(centroids[k.int32 * d],centroids[m*d],sizeof(float32)*d)
             for j in 0'i32..<d:
                 sign = (j mod 2) * 2 - 1;
-                self.centroids[centroidPos+k.int32 * d + j].unsafeAddr[] += (sign.float32 * eps)
-                self.centroids[centroidPos+m * d + j].unsafeAddr[] -= (sign.float32 * eps)
+                centroids[k.int32 * d + j][] += (sign.float32 * eps)
+                centroids[m * d + j][] -= (sign.float32 * eps)
             
             nelts[k] = nelts[m] div 2
             nelts[m] -= nelts[k]
 
-proc kmeans(self:ProductQuantizer;x:var Vector;centeroidPos:int;n:int32;d:int32) =
+proc kmeans(self:var ProductQuantizer;x:ptr float32;c:ptr float32;n:int32;d:int32) =
     var perm = newSeq[int32](n)
-    # var c = self.centroids[centeroidPos].unsafeAddr
     var i = 0'i32
     while i < n:
         perm[i] = i
@@ -120,11 +116,11 @@ proc kmeans(self:ProductQuantizer;x:var Vector;centeroidPos:int;n:int32;d:int32)
         nimCopyMem(self.centroids[i.int32 * d].unsafeAddr,perm[i*d].unsafeAddr,sizeof(float32)*d)
     var codes = newSeq[uint8](n)
     for i in 0..<niter:
-        self.Estep(x,0,centeroidPos,codes,0,d,n)
-        self.MStep(x,0,centeroidPos,codes,0,d,n)
+        self.Estep(x,c,codes[0].addr,d,n)
+        self.MStep(x,c,codes[0].addr,d,n)
 
 
-proc train*(self:var ProductQuantizer;n:int32;norms:var Vector) =
+proc train*(self:var ProductQuantizer;n:int32;norms:ptr float32) =
     debugEcho "train"
     if n < ksub:
         raise newException(ValueError,"Matrix too small for quantization, must have at least " & $ksub & " rows")
@@ -142,21 +138,19 @@ proc train*(self:var ProductQuantizer;n:int32;norms:var Vector) =
             self.rng.shuffle(perm)
         for j in 0..<np:
             xslice.idata[j*d] = norms[j*self.dim + m * self.dsub][]
-        i = self.getCentroidsPosition(m.int32,0'u8)
-        self.kmeans(xslice,i,np,d)
+        self.kmeans(xslice.idata[0].addr, self.get_centroids(m.int32, 0),np,d)
 
-proc compute_code*(self: ProductQuantizer; x: var Vector;xpos:int; code: var seq[uint8],codePos:int) {.noSideEffect.} =
+proc compute_code*(self:var ProductQuantizer; x:ptr float32; code: ptr uint8) {.noSideEffect.} =
     var d = self.dsub
     var i:int32
     for m in 0..<self.nsubq:
         if m == self.nsubq - 1:
             d = self.lastdsub
-        i = self.getCentroidsPosition(m.int32,0'u8)
-        discard self.assign_centroid(x,xpos+m * self.dsub,self.centroids,i,code, codePos+m.int32 , d)
+        discard self.assign_centroid(x[m * self.dsub],self.get_centroids(m.int32, 0),code[m], d)
 
-proc compute_codes*(self: ProductQuantizer; x: var Vector;xpos:int32; code: var seq[uint8],codePos:int32; n: int32) {.noSideEffect.} =
+proc compute_codes*(self:var ProductQuantizer; x:ptr float32;codes:ptr uint8; n: int32) {.noSideEffect.} =
     for i in 0..<n:
-        self.compute_code(x,xpos + i*self.dim,code,codePos+i*self.nsubq)
+        self.compute_code(x[i*self.dim],codes[i*self.nsubq])
     
 # proc save*(this: var ProductQuantizer; a2: var ostream) {.stdcall, importcpp: "save",
 #     header: headerproductquantizer.}

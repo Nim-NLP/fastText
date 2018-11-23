@@ -27,8 +27,9 @@ proc initQMatrix*(mat:var Matrix; dsub: int32; qnorm: bool): QMatrix =
 proc quantizeNorm*(self:var QMatrix;norms:var Vector) =
     assert self.qnorm == true
     assert norms.size() == self.m
-    self.npq[].train(self.m.int32, norms)
-    self.npq[].compute_codes(norms,0'i32, self.norm_codes,0'i32, self.m.int32);
+    let dataptr = norms.idata[0].addr
+    self.npq[].train(self.m.int32, dataptr)
+    self.npq[].compute_codes(dataptr, self.norm_codes[0].addr, self.m.int32);
 
 proc quantize*(self:var QMatrix;matrix:Matrix) =
     assert(self.m == matrix.size(0))

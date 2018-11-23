@@ -63,6 +63,9 @@ proc `[]`*(self:ptr float32,key:int64):ptr float32 =
     let a:ptr UncheckedArray[float32] = cast[ptr UncheckedArray[float32]](self)
     a[key].unsafeaddr
 
+proc `[]`*(self:ptr uint8,key:int64):ptr uint8 = 
+    let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
+    a[key].unsafeaddr
 # proc `[]=`*(self: var Vector; i: int64,j:float32)  =
 #     self.idata[i] = j
 
@@ -104,63 +107,55 @@ proc getM*(self: QMatrix): int64 =
 
 proc getN*(self: QMatrix): int64 =
     self.n
-
-proc getCentroidsPosition*(self:  ProductQuantizer; m: int32; i: uint8): int32 =
-    if (m == self.nsubq - 1) :
-        return m * ksub * self.dsub + i.int32 * self.lastdsub
-    return (m * ksub + i.int32) * self.dsub
     
+proc get_centroids*(self:var ProductQuantizer;m:int32;i:uint8):ptr float32=
+    if (m == self.nsubq - 1) :
+        return self.centroids[m * ksub * self.dsub + i.int32 * self.lastdsub].addr
+    return self.centroids[(m * ksub + i.int32) * self.dsub].addr
 
-proc mulcode*(self: ProductQuantizer; x:var Vector; codes: seq[uint8];codePos:int32; t: int32; alpha: float32): float32 =
+proc mulcode*(self:var ProductQuantizer; x:var Vector; codes:ptr uint8; t: int32; alpha: float32): float32 =
  
     var d = self.dsub
-    var codePos1:int32 = codePos + self.nsubq * t
-    var cp:int32
-    var cv:float32
+    # var codePos1:int32 = codePos + self.nsubq * t
+    let code = codes[self.nsubq * t]
+    # var cp:int32
+    var c:ptr float32
     for m in 0..<self.nsubq:
-        cp = self.getCentroidsPosition(m.int32,codes[codePos1+m])
-        cv = self.centroids[cp]
+        c = self.get_centroids(m.int32,codes[m][])
         if m == self.nsubq - 1 :
             d = self.lastdsub
         for n in 0..<d:
-            result += x[m * self.dsub + n][] * cv.addr[n][].float32
+            result += x[m * self.dsub + n][] * c[n][]
     result = result * alpha
 
-proc addcode*(self:  ProductQuantizer; x: var Vector; codes: seq[uint8];codePos:int32; t: int32; alpha: float32) =
+proc addcode*(self: var ProductQuantizer; x: var Vector; codes: ptr uint8; t: int32; alpha: float32) =
     var d = self.dsub
-    var codePos1:int32 = codePos + self.nsubq * t
-    var cp:int32
-    var cv:float32
+    let code = codes[self.nsubq * t]
+    var c:ptr float32
     for m in 0..<self.nsubq:
-        cp = self.getCentroidsPosition(m.int32,codes[codePos1+m])
-        cv = self.centroids[cp]
+        c = self.get_centroids(m.int32,codes[m][])
         if m == self.nsubq - 1 :
             d = self.lastdsub
         for n in 0..<d:
-            x[m * self.dsub + n][] += (alpha * cv.addr[n][].float32)
+            x[m * self.dsub + n][] += alpha * c[n][]
 
-proc addToVector*(self: QMatrix; x: var Vector; t: int32) =
+proc addToVector*(self:var QMatrix; x: var Vector; t: int32) =
     var norm:float32 = 1
-    var normPos:int32
     if self.qnorm:
-        normPos = self.npq[].getCentroidsPosition(0'i32, self.norm_codes[t])
-        norm = self.npq.centroids[normPos]
-    self.pq[].addcode(x,self.codes,0, t, norm)
-    # pq_->addcode(x, codes_.data(), t, norm);
+        norm = self.npq[].get_centroids(0'i32, self.norm_codes[t])[]
+    self.pq[].addcode(x,self.codes[0].addr, t, norm)
 
-proc dotRow*(self: QMatrix; vec:var Vector; i: int64): float32 =
+proc dotRow*(self:var QMatrix; vec:var Vector; i: int64): float32 =
     assert(i >= 0);
     assert(i < self.m)
     assert(vec.size() == self.n)
     var norm:float32 = 1
-    var normPos:int32
     if self.qnorm:
         debugEcho "getCentroidsPosition start"
-        normPos = self.npq[].getCentroidsPosition(0'i32, self.norm_codes[i])
-        debugEcho "getCentroidsPosition end",normPos
-        norm = self.npq.centroids[normPos]
+        norm = self.npq[].get_centroids(0'i32, self.norm_codes[i])[]
+        debugEcho "getCentroidsPosition end",norm
     debugEcho "mulcode"
-    self.pq[].mulcode(vec,self.codes, 0, i.int32, norm)
+    self.pq[].mulcode(vec,self.codes[0].addr, i.int32, norm)
 
 proc l2NormRow*(self:var Matrix; i: int64): float32 {.noSideEffect.} = 
     var norm:float32 = 0.0

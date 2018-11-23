@@ -6,6 +6,7 @@ import ./args
 import math
 import algorithm
 import random
+import sequtils
 
 const SIGMOID_TABLE_SIZE:int64  = 512;
 const MAX_SIGMOID:int64  = 8;
@@ -188,11 +189,18 @@ proc dfs*(self: Model; k: int32; threshold: float32; node: int32; score: float32
     if heap.len() == k and score < heap[0].first:
         return 
     if self.tree[node].left == -1 and self.tree[node].right == -1:
-        heap.add( (first:score,second:node) )
+        # if any(heap, proc (x: tuple[first:float32, second:int32]): bool = return x.first == NegInf):
+        #     for i in 0..<heap.len:
+        #         if heap[i].first == NegInf:
+        #             heap[i] = (first:score,second:node)
+        #             break
+        # else:
+        heap.add (first:score,second:node)
         heap.sort(comparePairs)
         if heap.len() > k:
             discard heap.pop()
-            discard heap.pop()
+            # discard heap.pop()
+            
         return
     var f:float32
     if self.quant and self.args.qout:
@@ -221,7 +229,9 @@ proc predict*(self: Model; ipt: seq[int32]; k: int32; threshold: float32;heap: v
         raise newException(ValueError,"k needs to be 1 or higher!")
     if self.args.model != model_name.sup:
         raise newException(ValueError,"Model needs to be supervised for prediction!")
-    heap.setLen(k + 1)
+    # heap.setLen(k + 1)
+    # for i in 0..<heap.len:
+    #     heap[i].first = NegInf
     debugEcho "computeHidden start"
     self.computeHidden(ipt,hidden[])
     debugEcho "computeHidden end"

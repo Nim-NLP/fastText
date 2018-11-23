@@ -43,7 +43,7 @@ proc addRow*(self: var Vector; A: Matrix; i: int64;a:float32) =
     for j in 0..<A.size(1):
         self.idata[j] += a * A.at(i, j)
 
-proc addRow*(self: var Vector; A: QMatrix; i: int64; a: float32) =
+proc addRow*(self: var Vector; A:var QMatrix; i: int64; a: float32) =
     assert(i >= 0)
     A.addToVector(self, i.int32);
 
@@ -57,7 +57,7 @@ proc mul*(self: var Vector; A: Matrix; vec:var Vector) =
     for  i in 0..<self.size():
         self.idata[i] = A.dotRow(vec, i.int32)
 
-proc mul*(self: var Vector; A: QMatrix; vec:var Vector) =
+proc mul*(self: var Vector; A:var QMatrix; vec:var Vector) =
     assert(A.getM() == self.size())
     assert(A.getN() == vec.size())
     for i in 0..<self.size():
