@@ -50,13 +50,14 @@ proc isPruned*(self:var Dictionary):bool =
 
 proc load*(self: var Dictionary; a2: var Stream)
 
-proc initDictionary*(a1:ref Args,stream:var Stream): Dictionary =
+proc newDictionary*(a1:ref Args,stream:var Stream):ref Dictionary =
+    result = new Dictionary
     result.args = a1
     let i:int32 = -1
     result.word2int = newSeq[i](MAX_VOCAB_SIZE)
     result.pruneidxsize = -1
     result.pruneidx =  initTable[int32,int32]()
-    result.load(stream)
+    result[].load(stream)
 
 proc initTableDiscard(self:var Dictionary) = 
     self.pdiscard.setLen(self.size)
@@ -82,7 +83,7 @@ proc hash*(self: Dictionary; str: string): uint32 {.noSideEffect.} =
         h:uint32 = 2166136261'u32
         i = 0
     for i in 0..<str.len():
-        h = h ^ cast[uint32](cast[int8](str[i]));
+        h = h xor cast[uint32](cast[int8](str[i]))
         h = h * 16777619
     return h
 
@@ -128,7 +129,7 @@ proc initNgrams(self:var Dictionary) =
         if (self.words[i].word != EOS):
             self.computeSubwords(word, self.words[i].subwords)
 
-proc find(self: Dictionary,w:string,  h:uint32):int32 {.noSideEffect.} =
+proc find*(self: Dictionary,w:string,  h:uint32):int32 {.noSideEffect.} =
     var 
         word2intsize:uint32 = self.word2int.len().uint32
         id = h mod word2intsize
@@ -136,7 +137,7 @@ proc find(self: Dictionary,w:string,  h:uint32):int32 {.noSideEffect.} =
       id = (id + 1) mod word2intsize;
     return id.int32
   
-proc find(self: Dictionary,w:string):int32 {.noSideEffect.} = 
+proc find*(self: Dictionary,w:string):int32 {.noSideEffect.} = 
     return self.find(w, self.hash(w));
 
 proc load*(self: var Dictionary; a2: var Stream) =

@@ -8,18 +8,21 @@ import ./dictionary
 import ./model
 import math
 
+export dictionary
+export args
+
 const FASTTEXT_VERSION = 12'i32
 const FASTTEXT_FILEFORMAT_MAGIC_INT32 = 793712314'i32
 
 type
     FastText* = object
         args*:ref Args
-        dict:  Dictionary
-        input:  Matrix
-        output:  Matrix
-        qinput:  QMatrix
-        qoutput:  QMatrix
-        model:  Model
+        dict*:ref Dictionary
+        input: Matrix
+        output: Matrix
+        qinput: QMatrix
+        qoutput: QMatrix
+        model: Model
 
         quant: bool
         version: int32
@@ -49,7 +52,7 @@ proc loadModel*(self: var FastText; i: var Stream) =
     if self.version == 11 and self.args.model == model_name.sup:
         self.args.maxn = 0
 
-    self.dict = initDictionary(self.args, i)
+    self.dict = newDictionary(self.args, i)
     var quant_input: bool
     discard i.readData(quant_input.addr, sizeof(bool))
     if quant_input:
@@ -57,7 +60,7 @@ proc loadModel*(self: var FastText; i: var Stream) =
         self.qinput.load(i)
     else:
         self.input.load(i)
-    if not quant_input and self.dict.isPruned():
+    if not quant_input and self.dict[].isPruned():
         raise newException(ValueError,
                 """Invalid model file.\n
                   Please download the updated model from www.fasttext.cc.\n
@@ -72,9 +75,9 @@ proc loadModel*(self: var FastText; i: var Stream) =
     self.model.quant = self.quant
     self.model.setQuantizePointer(self.qinput.addr,self.qoutput.addr,self.args.qout)
     if self.args.model == model_name.sup:
-        self.model.setTargetCounts(self.dict.getCounts(entry_type.label))
+        self.model.setTargetCounts(self.dict[].getCounts(entry_type.label))
     else:
-        self.model.setTargetCounts(self.dict.getCounts(entry_type.word))
+        self.model.setTargetCounts(self.dict[].getCounts(entry_type.word))
     debugEcho "load model end",self.args[]
 
 proc loadModel*(self: var FastText; filename: string) =
@@ -90,7 +93,7 @@ proc predict*(self: var FastText; i:  Stream; k: int32;
         threshold: float32 ) =
     var words, labels: seq[int32]
     predictions.setLen(0)
-    discard self.dict.getLine(i, words, labels)
+    discard self.dict[].getLine(i, words, labels)
     predictions.setLen(0)
     if words.len == 0: return
     var hidden = initVector(self.args.dim)
@@ -100,7 +103,7 @@ proc predict*(self: var FastText; i:  Stream; k: int32;
             output.addr)
     for it in modelPredictions:
         predictions.add( (first: exp(it.first),
-                second: self.dict.getLabel(it.second)))
+                second: self.dict[].getLabel(it.second)))
 
 proc predict*(self: var FastText; i:  Stream; k: int32; print_prob: bool;
         threshold: float32 ) =
