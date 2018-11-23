@@ -12,25 +12,9 @@ proc distL2(x:ptr float32; y:ptr float32;  d:int32):float32 =
     for i in 0..<d:
         result += ((x[i][] - y[i][]) ^ 2)
 
-proc initProductQuantizer*(): ProductQuantizer =
-    result.rng = initRand(seed)
-
 proc newProductQuantizer*():ref ProductQuantizer =
     result = new ProductQuantizer
     result.rng = initRand(seed)
-
-proc initProductQuantizer*(dim: int32; dsub: int32): ProductQuantizer =
-    result.dim = dim
-    result.nsubq = result.dim div result.dsub
-    result.dsub = dsub
-    result.centroids.setLen(dim * ksub)
-   
-    result.rng = initRand(seed)
-    result.lastdsub = dim mod dsub
-    if (result.lastdsub == 0):
-        result.lastdsub = dsub
-    else:
-        inc result.nsubq
 
 proc newProductQuantizer*(dim: int32; dsub: int32):ref ProductQuantizer =
     result = new ProductQuantizer

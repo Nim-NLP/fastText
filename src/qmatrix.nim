@@ -31,7 +31,7 @@ proc quantizeNorm*(self:var QMatrix;norms:var Vector) =
     self.npq[].train(self.m.int32, dataptr)
     self.npq[].compute_codes(dataptr, self.norm_codes[0].addr, self.m.int32);
 
-proc quantize*(self:var QMatrix;matrix:Matrix) =
+proc quantize*(self:var QMatrix;matrix:  Matrix) =
     assert(self.m == matrix.size(0))
     assert(self.n == matrix.size(1))
     var temp = matrix
@@ -41,6 +41,9 @@ proc quantize*(self:var QMatrix;matrix:Matrix) =
         temp.l2NormRow(norms)
         temp.divideRow(norms)
         self.quantizeNorm(norms)
+    let dataptr = temp.idata[0].addr
+    self.pq[].train(self.m.int32,dataptr)
+    self.pq[].compute_codes(dataptr,self.codes[0].addr,self.m.int32)
 
 proc save*(self: var QMatrix; o: var Stream) =
     o.writeData(addr self.qnorm,sizeof(self.qnorm))

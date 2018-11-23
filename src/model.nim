@@ -173,6 +173,7 @@ proc softmax*(self: var Model; target: int32; lr: float64): float32  =
 proc computeHidden*(self: Model; ipt: seq[int32]; hidden: var Vector) {.noSideEffect.} =
     assert(self.hidden.size == self.hsz)
     hidden.zero()
+    debugEcho "self.quant",self.quant
     for i in ipt:
         if self.quant:
             hidden.addRow(self.qwi[],i)

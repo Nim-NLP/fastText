@@ -257,10 +257,8 @@ proc addSubwords*(self:Dictionary; line:var seq[int32]; token:string; wid:int32)
             line.add(wid)
         else:
             let ngrams = self.getSubwords(wid)
-            debugEcho line
             let pos = max(line.len - 1 , 0)
             line.insert(ngrams,pos)
-            debugEcho line
 
 proc reset*(self:Dictionary;i:Stream) =
     if i.atEnd():

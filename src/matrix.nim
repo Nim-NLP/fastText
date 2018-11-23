@@ -12,18 +12,14 @@ proc initMatrix*(m: int64; n: int64): Matrix =
 proc initMatrix*(): Matrix =
     result #= initMatrix(0,0)
 
-proc initMatrix*(a1: Matrix): Matrix =
-    result = a1
-
-
 proc zero*(self: var Matrix) =
     for i in 0..<self.idata.len:
         self.idata[i] = 0.0
 
 proc uniform*(self: var Matrix; a: float32) =
-    randomize(1)
+    var rng = initRand(1)
     for i in 0..<(self.m * self.n):
-        self.idata[i.int32] = rand( -a..a)
+        self.idata[i.int32] = rng.rand( -a..a)
 
 proc save*(self: var Matrix; o: var Stream) =
     o.writeData(self.m.addr,sizeof(int64))
