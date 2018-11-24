@@ -56,9 +56,11 @@ proc loadModel*(self: var FastText; i: var Stream) =
     var quant_input: bool
     discard i.readData(quant_input.addr, sizeof(bool))
     if quant_input:
+        debugEcho "loadModel quant_input"
         self.quant = true
         self.qinput.load(i)
     else:
+        debugEcho "loadModel input"
         self.input.load(i)
     if not quant_input and self.dict[].isPruned():
         raise newException(ValueError,
@@ -90,7 +92,7 @@ proc loadModel*(self: var FastText; filename: string) =
 
 proc predict*(self: var FastText; i:  Stream; k: int32;
         predictions: var seq[tuple[first: float32, second: string]];
-        threshold: float32 ) =
+        threshold: float32 = 0.0 ) =
     var words, labels: seq[int32]
     predictions.setLen(0)
     discard self.dict[].getLine(i, words, labels)
@@ -99,6 +101,7 @@ proc predict*(self: var FastText; i:  Stream; k: int32;
     var hidden = initVector(self.args.dim)
     var output = initVector(self.dict.nlabels)
     var modelPredictions: seq[tuple[first: float32, second: int32]]
+    debugEcho "words input len",words.len
     self.model.predict(words, k, threshold, modelPredictions, hidden.addr,
             output.addr)
     for it in modelPredictions:
@@ -106,7 +109,7 @@ proc predict*(self: var FastText; i:  Stream; k: int32;
                 second: self.dict[].getLabel(it.second)))
 
 proc predict*(self: var FastText; i:  Stream; k: int32; print_prob: bool;
-        threshold: float32 ) =
+        threshold: float32 = 0.0 ) =
     var line: string
     var predictions: seq[tuple[first: float32, second: string]]
     while i.readLine(line):

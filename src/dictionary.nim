@@ -111,6 +111,7 @@ proc computeSubwords*(self: Dictionary; word: string; ngrams: var seq[int32];
             if (n >= self.args.minn and not (n == 1 and (i == 0 or j == word.len()))):
                 h = int32(self.hash(ngram) mod (self.args.bucket).uint32)
                 debugEcho ngram
+                debugEcho h
                 self.pushHash(ngrams, h)
                 if (substrings != nil):
                     substrings[].add(ngram)
@@ -131,7 +132,7 @@ proc initNgrams(self:var Dictionary) =
 
 proc find*(self: Dictionary,w:string,  h:uint32):int32 {.noSideEffect.} =
     var 
-        word2intsize:uint32 = self.word2int.len().uint32
+        word2intsize = self.word2int.len().uint32
         id = h mod word2intsize
     while (self.word2int[id] != -1 and self.words[self.word2int[id]].word != w):
       id = (id + 1) mod word2intsize;
@@ -168,6 +169,7 @@ proc load*(self: var Dictionary; a2: var Stream) =
         self.pruneidx[first] = second
     self.initTableDiscard()
     self.initNgrams()
+    
     let word2intsize = ceil(self.size.float32 / 0.7'f32).toInt
     self.word2int.setLen(word2intsize)
     for i in 0..<word2intsize:
@@ -257,8 +259,9 @@ proc addSubwords*(self:Dictionary; line:var seq[int32]; token:string; wid:int32)
             line.add(wid)
         else:
             let ngrams = self.getSubwords(wid)
-            let pos = max(line.len - 1 , 0)
+            let pos = max(line.len , 0)
             line.insert(ngrams,pos)
+    debugEcho line
 
 proc reset*(self:Dictionary;i:Stream) =
     if i.atEnd():
@@ -268,12 +271,13 @@ proc reset*(self:Dictionary;i:Stream) =
 proc addWordNgrams*(self:Dictionary;line:var seq[int32];hashes:seq[int32];n:int32)=
     var h:uint64
     var j:int
+    debugEcho "hashes.len",hashes.len
     for i in 0..<hashes.len():
         h = hashes[i].uint64
         j = i + 1
         while j < hashes.len and j < i + n:
             h = h * 116049371 + hashes[j].uint64
-            debugEcho int32(h mod self.args.bucket.uint64)
+            debugEcho "addWordNgrams pushHash",int32(h mod self.args.bucket.uint64)
             self.pushHash(line,int32(h mod self.args.bucket.uint64))
             inc j
 
@@ -315,11 +319,11 @@ proc getLine*(self: Dictionary; i:  Stream; words: var seq[int32];
         if typ == entry_type.word:
             self.addSubwords(words,token,wid)
             word_hashes.add(cast[int32](h))
-            debugEcho word_hashes
         elif typ == entry_type.label and wid >= 0:
             labels.add(wid - self.nwords)
         if token == EOS:
             break
+    debugEcho "word_hashes",word_hashes
     self.addWordNgrams(words, word_hashes, self.args.wordNgrams)
     return ntokens
 

@@ -11,10 +11,8 @@ const eps*:float32 = 1e-7.float32;
 
 type
     ProductQuantizer*  = object
-      
       dim*,nsubq*,dsub*,lastdsub*:int32
       centroids*: seq[float32]
-     
       rng*: Rand
 
 type
@@ -140,7 +138,7 @@ proc addcode*(self: var ProductQuantizer; x: var Vector; codes: ptr uint8; t: in
             x[m * self.dsub + n][] += alpha * c[n][]
 
 proc addToVector*(self:var QMatrix; x: var Vector; t: int32) =
-    debugEcho "QMatrix addToVector"
+    debugEcho "QMatrix addToVector qnorm:",self.qnorm
     var norm:float32 = 1
     if self.qnorm:
         norm = self.npq[].get_centroids(0'i32, self.norm_codes[t])[]

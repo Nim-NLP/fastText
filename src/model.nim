@@ -62,7 +62,7 @@ proc log*(self: Model; x: float32): float32 {.noSideEffect.} =
     return self.t_log.idata[i]
 
 proc stdLog*(self: Model; x: float32): float32 {.noSideEffect.} =
-    return  ln(x + 1e-5'f32)
+    return  ln(x + 1e-5)
     
 proc initSigmoid*(self:var Model) =
     var x:float32
@@ -170,16 +170,18 @@ proc softmax*(self: var Model; target: int32; lr: float64): float32  =
         self.wo[].addRow(self.hidden,i,alpha)
     return -self.log(self.output[target][])
 
-proc computeHidden*(self: Model; ipt: seq[int32]; hidden: var Vector) {.noSideEffect.} =
-    assert(self.hidden.size == self.hsz)
+proc computeHidden*(self: Model; ipt:var seq[int32]; hidden: var Vector) {.noSideEffect.} =
+    assert(hidden.size == self.hsz)
     hidden.zero()
-    debugEcho "self.quant",self.quant
+    debugEcho "input size",ipt.len
     for i in ipt:
+        
         if self.quant:
+            debugEcho "model quant ",self.quant
             hidden.addRow(self.qwi[],i)
         else:
             hidden.addRow(self.wi[],i)
-    hidden.mul( 1.0 / ipt.len().float32 )
+    hidden.mul( 1 / ipt.len() )
 
 proc comparePairs*(l,r:tuple[first:float32, second:int32];):int = 
     (int)cmp(r.first , l.first)
@@ -205,6 +207,7 @@ proc dfs*(self: Model; k: int32; threshold: float32; node: int32; score: float32
         return
     var f:float32
     if self.quant and self.args.qout:
+        
         f = self.qwo[].dotRow(hidden,node - self.osz)
     else:
         f = self.wo[].dotRow(hidden,node - self.osz)
@@ -225,7 +228,7 @@ proc findKBest*(self: Model; k: int32; threshold: float32; heap: var seq[tuple[f
             discard heap.pop()
             discard heap.pop()
 
-proc predict*(self: Model; ipt: seq[int32]; k: int32; threshold: float32;heap: var seq[tuple[first:float32, second:int32]]; hidden: ptr Vector; output: ptr Vector) {. noSideEffect.} =
+proc predict*(self: Model; ipt:var seq[int32]; k: int32; threshold: float32;heap: var seq[tuple[first:float32, second:int32]]; hidden: ptr Vector; output: ptr Vector) {. noSideEffect.} =
     if k <= 0:
         raise newException(ValueError,"k needs to be 1 or higher!")
     if self.args.model != model_name.sup:
@@ -244,7 +247,7 @@ proc predict*(self: Model; ipt: seq[int32]; k: int32; threshold: float32;heap: v
         self.findKBest(k,threshold,heap,hidden[],output[])
     heap.sort(comparePairs)
 
-proc predict*(self:  Model; ipt: seq[int32]; k: int32; threshold: float32;
+proc predict*(self:  Model; ipt:var seq[int32]; k: int32; threshold: float32;
              heap: var seq[tuple[first:float32, second:int32]]) =
     self.predict(ipt, k, threshold, heap, self.hidden.unSafeAddr, self.output.unSafeAddr)
 
