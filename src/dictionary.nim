@@ -110,8 +110,6 @@ proc computeSubwords*(self: Dictionary; word: string; ngrams: var seq[int32];
             
             if (n >= self.args.minn and not (n == 1 and (i == 0 or j == word.len()))):
                 h = int32(self.hash(ngram) mod (self.args.bucket).uint32)
-                debugEcho ngram
-                debugEcho h
                 self.pushHash(ngrams, h)
                 if (substrings != nil):
                     substrings[].add(ngram)

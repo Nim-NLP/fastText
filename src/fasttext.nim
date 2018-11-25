@@ -105,7 +105,7 @@ proc predict*(self: var FastText; i:  Stream; k: int32;
     self.model.predict(words, k, threshold, modelPredictions, hidden.addr,
             output.addr)
     for it in modelPredictions:
-        predictions.add( (first: (it.first),
+        predictions.add( (first: exp(it.first),
                 second: self.dict[].getLabel(it.second)))
 
 proc predict*(self: var FastText; i:  Stream; k: int32; print_prob: bool;

@@ -112,14 +112,11 @@ proc get_centroids*(self:var ProductQuantizer;m:int32;i:uint8):ptr float32=
     return self.centroids[(m * ksub + i.int32) * self.dsub].addr
 
 proc mulcode*(self:var ProductQuantizer; x:var Vector; codes:ptr uint8; t: int32; alpha: float32): float32 =
- 
     var d = self.dsub
-    # var codePos1:int32 = codePos + self.nsubq * t
     let code = codes[self.nsubq * t]
-    # var cp:int32
     var c:ptr float32
     for m in 0..<self.nsubq:
-        c = self.get_centroids(m.int32,codes[m][])
+        c = self.get_centroids(m.int32,code[m][])
         if m == self.nsubq - 1 :
             d = self.lastdsub
         for n in 0..<d:
@@ -131,7 +128,7 @@ proc addcode*(self: var ProductQuantizer; x: var Vector; codes: ptr uint8; t: in
     let code = codes[self.nsubq * t]
     var c:ptr float32
     for m in 0..<self.nsubq:
-        c = self.get_centroids(m.int32,codes[m][])
+        c = self.get_centroids(m.int32,code[m][])
         if m == self.nsubq - 1 :
             d = self.lastdsub
         for n in 0..<d:
