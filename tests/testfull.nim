@@ -1,10 +1,12 @@
+# download bin model from https://fasttext.cc/docs/en/language-identification.html
+
 import os
 import fasttext
 import math
 
 var ft = initFastText()
 
-ft.loadModel("tests" / "lid.176.ftz")
+ft.loadModel("tests" / "lid.176.bin")
 
 var 
     print_prob = false
@@ -23,4 +25,4 @@ assert ft.args.bucket == 2000000
 
 # -0.01967973634600639
 let output = ft.predict(ss)
-assert output[0].first == 0.9535570740699768
+assert output[0].first == 0.9998614192008972
