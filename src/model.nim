@@ -192,17 +192,10 @@ proc dfs*(self: Model; k: int32; threshold: float32; node: int32; score: float32
     if heap.len() == k and score < heap[0].first:
         return 
     if self.tree[node].left == -1 and self.tree[node].right == -1:
-        # if any(heap, proc (x: tuple[first:float32, second:int32]): bool = return x.first == NegInf):
-        #     for i in 0..<heap.len:
-        #         if heap[i].first == NegInf:
-        #             heap[i] = (first:score,second:node)
-        #             break
-        # else:
         heap.add (first:score,second:node)
         heap.sort(comparePairs)
         if heap.len() > k:
             discard heap.pop()
-            # discard heap.pop()
             
         return
     var f:float32
@@ -225,7 +218,6 @@ proc findKBest*(self: Model; k: int32; threshold: float32; heap: var seq[tuple[f
         heap.add( (first:self.stdLog(output[i][]),second:i.int32) )
         heap.sort(comparePairs)
         if heap.len() > k:
-            discard heap.pop()
             discard heap.pop()
 
 proc predict*(self: Model; ipt:var seq[int32]; k: int32; threshold: float32;heap: var seq[tuple[first:float32, second:int32]]; hidden: ptr Vector; output: ptr Vector) {. noSideEffect.} =

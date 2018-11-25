@@ -25,4 +25,5 @@ assert ft.args.bucket == 2000000
 
 # -0.01967973634600639
 let output = ft.predict(ss)
+assert output[0].second == "__label__ml"
 assert output[0].first == 0.9998614192008972

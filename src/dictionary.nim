@@ -275,7 +275,6 @@ proc addWordNgrams*(self:Dictionary;line:var seq[int32];hashes:seq[int32];n:int3
         j = i + 1
         while j < hashes.len and j < i + n:
             h = h * 116049371 + hashes[j].uint64
-            debugEcho "addWordNgrams pushHash",int32(h mod self.args.bucket.uint64)
             self.pushHash(line,int32(h mod self.args.bucket.uint64))
             inc j
 
