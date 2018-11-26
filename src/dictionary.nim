@@ -2,16 +2,10 @@ import tables
 import sequtils
 import math
 import ./args
-# import ./real
 import streams
 import strutils
 import random
 import strscans
-
-type
-  id_type* = int32
-  entry_type* = enum # enum class entry_type : int8_t {word=0, label=1};
-    word = 0, label = 1
 
 const EOS* = "</s>";
 const BOW* = "<";
@@ -20,6 +14,9 @@ const MAX_VOCAB_SIZE:int32 = 30000000
 const MAX_LINE_SIZE:int32 = 1024
 
 type
+  id_type* = int32
+  entry_type* = enum # enum class entry_type : int8_t {word=0, label=1};
+    word = 0, label = 1
   entry*  = object
     word* : string
     count* : int64
@@ -40,13 +37,6 @@ type
     
 proc isPruned*(self:var Dictionary):bool =
     self.pruneidx_size >= 0
-
-# proc initDictionary*(a1: ptr Args): Dictionary =
-#     result.args = a1
-#     let i:int32 = -1
-#     result.word2int = newSeq[i](MAX_VOCAB_SIZE)
-#     result.pruneidxsize = -1'i32
-#     result.pruneidx =  initTable[int32,int32]()
 
 proc load*(self: var Dictionary; a2: var Stream)
 
@@ -95,7 +85,6 @@ proc computeSubwords*(self: Dictionary; word: string; ngrams: var seq[int32];
         n:int
         h:int32
         ngram:string
-    # debugEcho self.pruneidx
     for i in 0..<word.len():
         ngram.setLen(0)
         if ( (uint8(word[i]) and 0xC0) == 0x80): continue
@@ -123,7 +112,6 @@ proc initNgrams(self:var Dictionary) =
     
     for i in 0'i32..<self.size:
         word = BOW & self.words[i].word & EOW
-        # self.words[i].subwords.setLen(0)
         self.words[i].subwords.add(i)
         if (self.words[i].word != EOS):
             self.computeSubwords(word, self.words[i].subwords)

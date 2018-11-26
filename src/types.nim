@@ -40,16 +40,9 @@ proc initVector*(a1: int64): Vector =
 
 proc initVector*(a1: Vector): Vector =
     result = a1
-        
 
 proc size*(self: Vector): int64 =
     self.idata.len
-
-# proc data*(self: var Vector): ptr float32 =
-#     addr self.idata[0]
-
-# proc data*(self: Vector): ptr float32 =
-#     self.idata[0].unSafeAddr
 
 proc `[]`*(self: var Vector; i: int64): ptr float32 =
     result = self.idata[i].addr
@@ -64,20 +57,9 @@ proc `[]`*(self:ptr float32,key:int64):ptr float32 =
 proc `[]`*(self:ptr uint8,key:int64):ptr uint8 = 
     let a:ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
     a[key].unsafeaddr
-# proc `[]=`*(self: var Vector; i: int64,j:float32)  =
-#     self.idata[i] = j
-
-# proc `[]+=`*(self: var Vector; i: int64,j:float32)  =
-#     self.idata[i] = self.idata[i] + j
     
 proc get*(self:var Vector; i: int64): float32 =
     self.idata[i]
-
-# proc data*(self: var Matrix): ptr float32 =
-#     self.idata[0].addr
-
-# proc data*(self: Matrix): ptr float32 {.noSideEffect.} =
-#     self.idata[0].unsafeAddr
 
 proc at*(self: Matrix; i: int64; j: int64): float32 {.noSideEffect.} =
     self.idata[ (i * self.n + j) ]
@@ -188,7 +170,6 @@ proc multiplyRow*(self: var Matrix; nums:var Vector; ib: int64 = 0; ie: int64 = 
                 self.at(i,j)[] *= n
         inc i
 
-
 proc divideRow*(self: var Matrix; denoms:var Vector; ib: int64 = 0; ie: int64 = -1) =
     var iee = ie
     if ie == -1:
@@ -202,9 +183,3 @@ proc divideRow*(self: var Matrix; denoms:var Vector; ib: int64 = 0; ie: int64 = 
             for j in 0..<self.n:
                 self.at(i,j)[] /= n
         inc i 
-
-
-    
-
-        
-    

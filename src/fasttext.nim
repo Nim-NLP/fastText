@@ -23,13 +23,11 @@ type
         qinput: QMatrix
         qoutput: QMatrix
         model: Model
-
         quant: bool
         version: int32
 
 proc initFastText*(): FastText =
     result.quant = false
-    # result.version = FASTTEXT_VERSION
 
 proc checkModel*(self: var FastText, i: var Stream): bool =
     var magic: int32
