@@ -7,7 +7,7 @@ import ./qmatrix
 import ./dictionary
 import ./model
 import math
-
+from times import getTime, toUnix, nanosecond
 export dictionary
 export args
 
@@ -15,18 +15,19 @@ const FASTTEXT_VERSION = 12'i32
 const FASTTEXT_FILEFORMAT_MAGIC_INT32 = 793712314'i32
 
 type
-    FastText* = object
+    FastText* = ref object
         args*:ref Args
         dict*:ref Dictionary
         input: Matrix
         output: Matrix
         qinput: QMatrix
         qoutput: QMatrix
-        model: Model
+        model:ref Model
         quant: bool
         version: int32
 
 proc initFastText*(): FastText =
+    result = new FastText
     result.quant = false
 
 proc checkModel*(self: var FastText, i: var Stream): bool =
@@ -71,7 +72,9 @@ proc loadModel*(self: var FastText; i: var Stream) =
         self.qoutput.load(i)
     else:
         self.output.load(i)
-    self.model = initModel(self.input.addr,self.output.addr,self.args,0)
+    let now = getTime()
+    new self.model
+    initModel(self.model,self.input.addr,self.output.addr,self.args,now.toUnix + now.nanosecond)
     self.model.quant = self.quant
     self.model.setQuantizePointer(self.qinput.addr,self.qoutput.addr,self.args.qout)
     if self.args.model == model_name.sup:

@@ -27,4 +27,4 @@ assert output[0].second == "__label__1"
 # var s2 = "美国航天局近日在其官网博客上公布了商业载人飞船的试验性飞行时间表，其中第一次试飞将不载人，由美国太空探索技术公司的“龙”飞船于明年年初执行。"
 var s2 = "me3i guo2 ha2ng tia1n ju2 ji4n ri4 za4i qi2 gua1n wa3ng bo2 ke4 sha4ng go1ng bu4 le sha1ng ye4 za4i re2n fe1i chua2n de shi4 ya4n xi4ng fe1i xi2ng shi2 jia1n bia3o ， qi2 zho1ng di4 yi1 ci4 shi4 fe1i jia1ng bu4 za4i re2n ， yo2u me3i guo2 ta4i ko1ng ta4n suo3 ji4 shu4 go1ng si1 de “ lo2ng ” fe1i chua2n yu2 mi2ng nia2n nia2n chu1 zhi2 xi2ng 。"
 let output2 = ft.predict(s2)
-assert output[0].second == "__label__5" 
+assert output2[0].second == "__label__5" 
