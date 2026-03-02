@@ -2,10 +2,9 @@
 
 import os
 import fasttext
-import math
 
 var ft = initFastText()
-if existsFile("tests" / "lid.176.bin"):
+if fileExists("tests" / "lid.176.bin"):
     ft.loadModel("tests" / "lid.176.bin")
 
     var 

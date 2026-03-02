@@ -5,7 +5,6 @@ import streams
 include system/ansi_c
 include system/memory
 import types
-import strutils
 
 proc distL2(x: ptr float32; y: ptr float32; d: int32): float32 =
     for i in 0..<d:
@@ -111,7 +110,6 @@ proc kmeans(self: var ProductQuantizer; x: ptr float32; c: ptr float32;
 
 
 proc train*(self: var ProductQuantizer; n: int32; norms: ptr float32) =
-    debugEcho "train"
     if n < ksub:
         raise newException(ValueError,
                 "Matrix too small for quantization, must have at least " &

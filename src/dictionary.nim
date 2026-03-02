@@ -5,7 +5,6 @@ import ./args
 import streams
 import strutils
 import random
-import strscans
 
 const EOS* = "</s>";
 const BOW* = "<";
@@ -165,8 +164,6 @@ proc load*(self: var Dictionary; a2: var Stream) =
         self.word2int[self.find(self.words[j].word)] = j;
         inc j
 
-    debugEcho "load finished"
-
 proc getId*(self: Dictionary; w: string): int32 {.noSideEffect.} =
     let h = self.find(w)
     return self.word2int[h];
@@ -229,25 +226,21 @@ proc getLabel*(self: Dictionary; lid: int32): string {.noSideEffect.} =
 # proc save*(this: Dictionary; a2: var ostream) {.noSideEffect, stdcall,
 #     importcpp: "save", header: headerdictionary.}
 proc getCounts*(self: Dictionary; a2: entry_type): seq[int64] {.noSideEffect.} =
-    debugEcho "entry_type",a2
     for w in self.words:
         if w.entry_type == a2:
             result.add(w.count)
-    debugEcho "getCounts end"
 
 proc addSubwords*(self:Dictionary; line:var seq[int32]; token:string; wid:int32) =
     if wid < 0:
         if token != EOS:
             self.computeSubwords(BOW & token & EOW, line)
     else:
-        debugEcho "addSubwords else"
         if self.args.maxn <= 0:
             line.add(wid)
         else:
             let ngrams = self.getSubwords(wid)
             let pos = max(line.len , 0)
             line.insert(ngrams,pos)
-    debugEcho line
 
 proc reset*(self:Dictionary;i:Stream) =
     if i.atEnd():
@@ -257,7 +250,6 @@ proc reset*(self:Dictionary;i:Stream) =
 proc addWordNgrams*(self:Dictionary;line:var seq[int32];hashes:seq[int32];n:int32)=
     var h:uint64
     var j:int
-    debugEcho "hashes.len",hashes.len
     for i in 0..<hashes.len():
         h = hashes[i].uint64
         j = i + 1
@@ -300,7 +292,6 @@ proc getLine*(self: Dictionary; i:  Stream; words: var seq[int32];
         wid = self.getId(token,h)
         typ = if wid < 0 : self.getType(token) else: self.getType(wid)
         inc ntokens
-        debugEcho ntokens,typ
         if typ == entry_type.word:
             self.addSubwords(words,token,wid)
             word_hashes.add(cast[int32](h))
@@ -308,7 +299,6 @@ proc getLine*(self: Dictionary; i:  Stream; words: var seq[int32];
             labels.add(wid - self.nwords)
         if token == EOS:
             break
-    debugEcho "word_hashes",word_hashes
     self.addWordNgrams(words, word_hashes, self.args.wordNgrams)
     return ntokens
 

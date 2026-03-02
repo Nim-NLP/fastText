@@ -1,12 +1,10 @@
 import ./types
 import ./vector
-import ./matrix
-import ./qmatrix
 import ./args
 import math
 import algorithm
 import random
-import sequtils
+
 
 const SIGMOID_TABLE_SIZE:int64  = 512;
 const MAX_SIGMOID:int64  = 8;
@@ -48,9 +46,7 @@ proc setQuantizePointer*(self:ref Model,qwi:ptr QMatrix,qwo:ptr QMatrix,qout:boo
     self.qwi = qwi
     self.qwo = qwo
     if qout:
-        debugEcho "self.qwo[].getM()",self.qwo[].getM()
         self.osz = self.qwo[].getM().int32
-    debugEcho "setQuantizePointer end"
 
 proc getLoss*(self:ref Model): float32 {.noSideEffect.} =
     return self.loss / self.nexamples.float32
@@ -173,11 +169,8 @@ proc softmax*(self: ref Model; target: int32; lr: float64): float32  =
 proc computeHidden*(self:ref Model; ipt:var seq[int32]; hidden: var Vector) {.noSideEffect.} =
     assert(hidden.size == self.hsz)
     hidden.zero()
-    debugEcho "input size",ipt.len
     for i in ipt:
-        
         if self.quant:
-            debugEcho "model quant ",self.quant
             hidden.addRow(self.qwi[],i)
         else:
             hidden.addRow(self.wi[],i)
@@ -225,17 +218,10 @@ proc predict*(self:ref Model; ipt:var seq[int32]; k: int32; threshold: float32;h
         raise newException(ValueError,"k needs to be 1 or higher!")
     if self.args.model != model_name.sup:
         raise newException(ValueError,"Model needs to be supervised for prediction!")
-    # heap.setLen(k + 1)
-    # for i in 0..<heap.len:
-    #     heap[i].first = NegInf
-    debugEcho "computeHidden start"
     self.computeHidden(ipt,hidden[])
-    debugEcho "computeHidden end"
     if self.args.loss == loss_name.hs:
         self.dfs(k,threshold,2 * self.osz - 2, 0.0,heap,hidden[])
-        debugEcho "self.dfs end"
     else:
-        debugEcho "self.findKBest"
         self.findKBest(k,threshold,heap,hidden[],output[])
     heap.sort(comparePairs)
 
@@ -244,7 +230,6 @@ proc predict*(self:ref Model; ipt:var seq[int32]; k: int32; threshold: float32;
     self.predict(ipt, k, threshold, heap, self.hidden.unSafeAddr, self.output.unSafeAddr)
 
 proc initTableNegatives*(self: ref Model; counts: seq[int64]) =
-    debugEcho "initTableNegatives"
     var z:float32 = 0.0
     for i in 0..<counts.len():
         z += pow(counts[i].float32,0.5'f32)
@@ -254,10 +239,8 @@ proc initTableNegatives*(self: ref Model; counts: seq[int64]) =
         for j in 0..<(c * NEGATIVE_TABLE_SIZE / z).int32:
             self.negatives.add(i.int32)
     self.rng.shuffle(self.negatives)
-    debugEcho "initTableNegatives shuffle"
 
 proc buildTree*(self: ref Model; counts: seq[int64]) =
-    debugEcho "buildTree"
     self.tree.setLen(2 * self.osz - 1)
     for i in 0..<(2 * self.osz - 1) :
         self.tree[i].parent = -1
@@ -301,10 +284,8 @@ proc buildTree*(self: ref Model; counts: seq[int64]) =
 proc setTargetCounts*(self: ref Model; counts: seq[int64]) =
     assert(counts.len == self.osz)
     if self.args[].loss == loss_name.ns:
-        debugEcho "setTargetCounts oss_name.ns initTableNegatives"
         self.initTableNegatives(counts)
     if self.args[].loss == loss_name.hs:
-        debugEcho "setTargetCounts oss_name.hs buildTree"
         self.buildTree(counts)
 
 

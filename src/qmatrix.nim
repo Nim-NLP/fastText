@@ -1,10 +1,8 @@
 
 import ./productquantizer
 import ./types
-import ./vector
-import ./matrix
 import streams
-import strutils
+
 
 proc quantize*(self: var QMatrix; matrix: Matrix)
 proc quantizeNorm*(self: var QMatrix; norms: var Vector)
@@ -51,12 +49,10 @@ proc load*(self: var QMatrix; a2: var Stream) =
     discard a2.readData(addr self.n, sizeof(int64))
     discard a2.readData(addr self.codesize, sizeof(int32))
     self.codes.setLen(self.codesize)
-    debugEcho "QMatrix codesize ", self.codesize
     for j in 0..<self.codes.len:
         discard a2.readData(self.codes[j].addr, sizeof(uint8))
     self.pq = newProductQuantizer()
     self.pq[].load(a2)
-    debugEcho "QMatrix load self.qnorm ", self.qnorm
     if self.qnorm:
         self.norm_codes.setLen(self.m)
         for i in 0..<self.m:

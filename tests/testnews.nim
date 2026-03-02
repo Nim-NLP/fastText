@@ -1,6 +1,5 @@
 import os
 import fasttext
-import math
 
 var ft = initFastText()
 

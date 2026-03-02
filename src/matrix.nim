@@ -1,8 +1,6 @@
 import random
-import math
 import streams
 import ./types
-import ./vector
 
 proc initMatrix*(m: int64; n: int64): Matrix =
     result.idata.setLen(m*n)

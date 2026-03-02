@@ -1,7 +1,6 @@
 import math
 import ./types
-import ./matrix
-import ./qmatrix
+
 
 proc zero*(self: var Vector) =
     for i in 0..<self.size():

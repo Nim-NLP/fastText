@@ -128,10 +128,7 @@ proc dotRow*(self:var QMatrix; vec:var Vector; i: int64): float32 =
     assert(vec.size() == self.n)
     var norm:float32 = 1
     if self.qnorm:
-        debugEcho "getCentroidsPosition start"
         norm = self.npq[].get_centroids(0'i32, self.norm_codes[i])[]
-        debugEcho "getCentroidsPosition end",norm
-    debugEcho "mulcode"
     self.pq[].mulcode(vec,self.codes[0].addr, i.int32, norm)
 
 proc l2NormRow*(self:var Matrix; i: int64): float32 {.noSideEffect.} = 

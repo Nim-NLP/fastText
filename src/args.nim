@@ -106,25 +106,15 @@ func lossToString(ln: loss_name): string =
     of loss_name.softmax:
       return "softmax";
 
-  return "Unknown loss!"; # should never happen
-
-
-func boolToString(b: bool): string =
-  if (b):
-    return "true";
-  else:
-    return "false";
-
 
 func modelToString(mn: model_name): string =
   case (mn):
     of model_name.cbow:
-      return "cbow";
+      return "cbow"
     of model_name.sg:
-      return "sg";
+      return "sg"
     of model_name.sup:
-      return "sup";
-  return "Unknown model name!"; # should never happen
+      return "sup"
 
 # proc parseArgs*(this: var Args; args: vector[string]) {.stdcall,
 #     importcpp: "parseArgs", header: headerargs.}
