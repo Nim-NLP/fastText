@@ -1,7 +1,7 @@
 import tables
 import sequtils
 import math
-import ./args
+import ./types
 import streams
 import strutils
 import random
@@ -12,27 +12,9 @@ const EOW* = ">";
 const MAX_VOCAB_SIZE:int32 = 30000000
 const MAX_LINE_SIZE:int32 = 1024
 
-type
-  id_type* = int32
-  entry_type* = enum # enum class entry_type : int8_t {word=0, label=1};
-    word = 0, label = 1
-  entry*  = object
-    word* : string
-    count* : int64
-    entry_type* : entry_type
-    subwords* : seq[int32]
 
-  Dictionary*  = object
-    args:ref Args
-    word2int:seq[int32]
-    words:seq[entry] 
-    pdiscard:seq[float32]
-    size:int32
-    nwords*:int32
-    nlabels*:int32
-    ntokens*:int64
-    pruneidxsize:int64
-    pruneidx:Table[int32,int32]
+
+
     
 proc isPruned*(self:var Dictionary):bool =
     self.pruneidx_size >= 0

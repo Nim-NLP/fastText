@@ -11,36 +11,6 @@ const MAX_SIGMOID:int64  = 8;
 const LOG_TABLE_SIZE:int64  = 512;
 const NEGATIVE_TABLE_SIZE = 10000000
 
-type
-  Node* = object
-    parent*: int32
-    left* : int32
-    right* : int32
-    count* : int64
-    binary* : bool
-
-  Model*  =  object
-    rng*: Rand
-    wi*:ptr Matrix
-    wo*:ptr Matrix
-    qwi*:ptr QMatrix
-    qwo*:ptr QMatrix
-    args*:ref Args
-    hidden*: Vector
-    output*: Vector
-    grad*:Vector
-    hsz*:int32
-    osz*:int32
-    loss*:float32
-    nexamples:int64
-    quant* : bool
-    t_sigmoid*:Vector
-    t_log*:Vector
-    negatives*:seq[int32]
-    negpos*:uint32
-    paths*:seq[seq[int32]]
-    codes*:seq[seq[bool]]
-    tree*:seq[Node]
 
 proc setQuantizePointer*(self:ref Model,qwi:ptr QMatrix,qwo:ptr QMatrix,qout:bool) =
     self.qwi = qwi

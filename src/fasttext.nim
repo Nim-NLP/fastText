@@ -8,23 +8,11 @@ import ./dictionary
 import ./model
 import math
 from times import getTime, toUnix, nanosecond
-export dictionary
-export args
+export FastText
 
 const FASTTEXT_VERSION = 12'i32
 const FASTTEXT_FILEFORMAT_MAGIC_INT32 = 793712314'i32
 
-type
-    FastText* = ref object
-        args*:ref Args
-        dict*:ref Dictionary
-        input: Matrix
-        output: Matrix
-        qinput: QMatrix
-        qoutput: QMatrix
-        model:ref Model
-        quant: bool
-        version: int32
 
 proc initFastText*(): FastText =
     result = new FastText

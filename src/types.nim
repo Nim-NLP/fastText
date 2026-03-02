@@ -1,5 +1,5 @@
 import math
-import random
+import random, tables,streams,strutils
 
 const nbits*:int32 = 8;
 const ksub*:int32 = 1 shl nbits;
@@ -8,6 +8,73 @@ const max_points*:int32 = max_points_per_cluster * ksub
 const seed*:int32 = 1234;
 const niter*:int32 = 25;
 const eps*:float32 = 1e-7.float32;
+
+type
+  model_name* = enum
+    cbow = 1, sg, sup
+
+
+type
+  loss_name* = enum
+    hs = 1, ns, softmax
+
+
+type
+  Args* = object
+    input*: string
+    output*: string
+    lr*: float64
+    lrUpdateRate*: cint
+    dim*: cint
+    ws*: cint
+    epoch*: cint
+    minCount*: cint
+    minCountLabel*: cint
+    neg*: cint
+    wordNgrams*: cint
+    loss*: loss_name
+    model*: model_name
+    bucket*: cint
+    minn*: cint
+    maxn*: cint
+    thread*: cint
+    t*: float64
+    label*: string
+    verbose*: cint
+    pretrainedVectors*: string
+    saveOutput*: bool
+    qout*: bool
+    retrain*: bool
+    qnorm*: bool
+    cutoff*: csize
+    dsub*: csize
+
+
+
+type
+  id_type* = int32
+  entry_type* = enum # enum class entry_type : int8_t {word=0, label=1};
+    word = 0, label = 1
+  entry*  = object
+    word* : string
+    count* : int64
+    entry_type* : entry_type
+    subwords* : seq[int32]
+
+  Dictionary*  = object
+    args*:ref Args
+    word2int*:seq[int32]
+    words*:seq[entry] 
+    pdiscard*:seq[float32]
+    size*:int32
+    nwords*:int32
+    nlabels*:int32
+    ntokens*:int64
+    pruneidxsize*:int64
+    pruneidx*:Table[int32,int32]
+    
+
+
 
 type
     ProductQuantizer*  = object
@@ -27,13 +94,58 @@ type
       norm_codes*:seq[uint8]
       pq*,npq*:ref ProductQuantizer
 
+type
+    Vector*  = object
+        idata*:seq[ float32]
+
+type
+  Node* = object
+    parent*: int32
+    left* : int32
+    right* : int32
+    count* : int64
+    binary* : bool
+
+  Model*  =  object
+    rng*: Rand
+    wi*:ptr Matrix
+    wo*:ptr Matrix
+    qwi*:ptr QMatrix
+    qwo*:ptr QMatrix
+    args*:ref Args
+    hidden*: Vector
+    output*: Vector
+    grad*:Vector
+    hsz*:int32
+    osz*:int32
+    loss*:float32
+    nexamples*:int64
+    quant* : bool
+    t_sigmoid*:Vector
+    t_log*:Vector
+    negatives*:seq[int32]
+    negpos*:uint32
+    paths*:seq[seq[int32]]
+    codes*:seq[seq[bool]]
+    tree*:seq[Node]
+
+type
+    FastText* = ref object
+        args*:ref Args
+        dict*:ref Dictionary
+        input*: Matrix
+        output*: Matrix
+        qinput*: QMatrix
+        qoutput*: QMatrix
+        model*:ref Model
+        quant*: bool
+        version*: int32
+
 proc size*(self: Matrix; dim: int64): int64 =
     assert(dim == 0 or dim == 1 )
     result = if dim == 0 : self.m else : self.n
 
-type
-    Vector*  = object
-        idata*:seq[ float32]
+
 
 proc initVector*(a1: int64): Vector =
     result.idata = newSeq[float32](a1)
@@ -179,3 +291,34 @@ proc divideRow*(self: var Matrix; denoms:var Vector; ib: int64 = 0; ie: int64 = 
             for j in 0..<self.n:
                 self.at(i,j)[] /= n
         inc i 
+
+proc newArgs*(): ref Args =
+  result = new Args
+  result.lr = 0.05
+  result.dim = 100
+  result.ws = 5
+  result.epoch = 5
+  result.minCount = 5
+  result.minCountLabel = 0
+  result.neg = 5
+  result.wordNgrams = 1
+  result.loss = loss_name.ns
+  result.model = model_name.sg
+  result.bucket = 2000000
+  result.minn = 3
+  result.maxn = 6
+  result.thread = 12
+  result.lrUpdateRate = 100
+  result.t = 1e-4
+  result.label = "__label__"
+  result.verbose = 2
+  result.pretrainedVectors = ""
+  result.saveOutput = false
+
+  result.qout = false
+  result.retrain = false
+  result.qnorm = false
+  result.cutoff = 0
+  result.dsub = 2
+
+
