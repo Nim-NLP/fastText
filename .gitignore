@@ -5,3 +5,4 @@ nimfastText
 nimcache
 *.exe
 *.swp
+.DS_Store

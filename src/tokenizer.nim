@@ -52,16 +52,18 @@ proc vectorSimilarity(v1, v2: Vector): float32 =
 proc isCjkRune(r: Rune): bool =
   let code = r.int32
   result = (code >= 0x4E00 and code <= 0x9FFF) or
-           (code >= 0x3400 and code <= 0x4DBF) or
-           (code >= 0x20000 and code <= 0x2A6DF)
+       (code >= 0x3400 and code <= 0x4DBF) or
+       (code >= 0x20000 and code <= 0x2A6DF)
 
 proc isPunctuationRune(r: Rune): bool =
-  let punctuations = [',', '.', '!', '?', ';', ':', '"', '\'', '(', ')', '[', ']', '{', '}']
+  let punctuations = [',', '.', '!', '?', ';', ':', '"', '\'', '(', ')', '[',
+    ']', '{', '}']
   if r.int32 <= 127:
     result = chr(r.int32) in punctuations
   else:
     let s = $r
-    result = s in ["，", "。", "！", "？", "、", "；", "：", "（", "）", "【", "】", "《", "》", "—", "…"]
+    result = s in ["，", "。", "！", "？", "、", "；", "：", "（",
+      "）", "【", "】", "《", "》", "—", "…"]
 
 proc isDigitRune(r: Rune): bool =
   result = r.int32 >= ord('0') and r.int32 <= ord('9')
@@ -169,28 +171,28 @@ proc segmentText*(self: FastText; text: string): seq[string] =
 
 proc tokenizeLine*(self: FastText; line: string): TokenizedResult =
   let tokens = self.segmentText(line)
-  
+
   result.tokens = @[]
   result.unknownTokens = @[]
-  
+
   for token in tokens:
     if token == EOS or token.len == 0:
       continue
-      
+
     var tok = Token()
     tok.text = token
     tok.id = self.dict[].getId(token)
-    
+
     var substrings: seq[string]
     var ngrams: seq[int32]
     self.dict[].getSubwords(token, ngrams, substrings)
-    
+
     tok.subwords = substrings
     tok.subwordIds = ngrams
-    
+
     if tok.id < 0 and substrings.len == 0:
       result.unknownTokens.add(token)
-    
+
     result.tokens.add(tok)
 
 proc tokenizeLines*(self: FastText; lines: seq[string]): seq[TokenizedResult] =
