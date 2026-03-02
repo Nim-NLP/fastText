@@ -1,9 +1,8 @@
 ## Tokenizer module for FastText word segmentation.
 ##
-## This module provides text tokenization functionality using the vocabulary
-## from a pre-trained FastText model. The segmentation algorithm performs
-## dictionary-based matching for CJK (Chinese, Japanese, Korean) characters
-## and falls back to vector norm scoring for unknown substrings.
+## This module provides a built-in tokenizer that uses FastText's learned
+## word embeddings to segment text. It leverages the model's internal
+## vocabulary and subword vectors for segmentation.
 ##
 ## Primary API:
 ## - `tokenizeLine`: Tokenizes a single line of text into a sequence of tokens

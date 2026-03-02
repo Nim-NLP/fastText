@@ -1,7 +1,36 @@
 Porting [fastText](https://github.com/facebookresearch/fastText) in Nim.
 
 
-**Note:This implementation supports prediction for supervised and unsupervised models, whether they are quantized or not. Please use C++ version of fastText for train, test and quantization.**  
+**Note:This implementation supports prediction for supervised and unsupervised models, whether they are quantized or not. Please use C++ version of fastText for train, test and quantization.**
+
+## Tokenizer API
+
+This Nim port includes a **built-in tokenizer** that uses FastText's learned word embeddings to segment text.
+
+**Note:** The quality of segmentation depends entirely on the vocabulary of the loaded FastText model. This is not a general-purpose tokenizer like jieba or spaCy - it simply looks up words in the model's dictionary.
+
+### Features
+
+- Dictionary-based matching using FastText's vocabulary
+- Greedy longest-match algorithm for CJK text
+- Vector norm fallback for unknown sequences
+- Returns token IDs and subword n-gram information
+
+### Usage
+
+```nim
+import fasttext
+
+var ft = initFastText()
+ft.loadModel("path/to/model.ftz")
+
+# Tokenize text
+let tokens = ft.tokenizeLine("Hello world! 这是一个测试。")
+for token in tokens:
+  echo token.text, " (id: ", token.id, ")"
+```
+
+The tokenizer categorizes text by character type (CJK, Latin, digits, punctuation), then performs dictionary lookup for CJK sequences. For unknown words, it uses vector norm scoring to determine boundaries.  
 
 __Installation__
 
