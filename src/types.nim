@@ -186,7 +186,7 @@ proc cols*(self: Matrix): int64 =
   self.n
 
 proc dotRow*(self: Matrix; vec: var Vector;
-    i: int32): float32 {.noSideEffect.} =
+  i: int32): float32 {.noSideEffect.} =
   assert i >= 0
   assert i < self.m
   assert vec.size == self.n
@@ -202,14 +202,14 @@ proc getN*(self: QMatrix): int64 =
   self.n
 
 proc get_centroids*(self: var ProductQuantizer; m: int32;
-    i: uint8): ptr float32 =
+  i: uint8): ptr float32 =
   if (m == self.nsubq - 1):
     return self.centroids[m * ksub * self.dsub + i.int32 *
-            self.lastdsub].addr
+        self.lastdsub].addr
   return self.centroids[(m * ksub + i.int32) * self.dsub].addr
 
 proc mulcode*(self: var ProductQuantizer; x: var Vector; codes: ptr uint8;
-    t: int32; alpha: float32): float32 =
+  t: int32; alpha: float32): float32 =
   var d = self.dsub
   let code = codes[self.nsubq * t]
   var c: ptr float32
@@ -222,7 +222,7 @@ proc mulcode*(self: var ProductQuantizer; x: var Vector; codes: ptr uint8;
   result = result * alpha
 
 proc addcode*(self: var ProductQuantizer; x: var Vector; codes: ptr uint8;
-    t: int32; alpha: float32) =
+  t: int32; alpha: float32) =
   var d = self.dsub
   let code = codes[self.nsubq * t]
   var c: ptr float32
@@ -270,7 +270,7 @@ proc addRow*(self: var Matrix; vec: var Vector; i: int64; a: float32) =
     self.idata[ (i * self.n + j).int32] += a * vec.get(j)
 
 proc multiplyRow*(self: var Matrix; nums: var Vector; ib: int64 = 0;
-    ie: int64 = -1) =
+  ie: int64 = -1) =
   var iee = ie
   if ie == -1:
     iee = self.m
@@ -285,7 +285,7 @@ proc multiplyRow*(self: var Matrix; nums: var Vector; ib: int64 = 0;
     inc i
 
 proc divideRow*(self: var Matrix; denoms: var Vector; ib: int64 = 0;
-    ie: int64 = -1) =
+  ie: int64 = -1) =
   var iee = ie
   if ie == -1:
     iee = self.m
