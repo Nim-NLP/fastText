@@ -1,28 +1,39 @@
 # download bin model from https://fasttext.cc/docs/en/language-identification.html
 
 import os
+import unittest
 import fasttext
 
-var ft = initFastText()
-if fileExists("tests" / "lid.176.bin"):
-    ft.loadModel("tests" / "lid.176.bin")
+const testDir = currentSourcePath().parentDir / "testdata"
+const binModelExists = fileExists(testDir / "lid.176.bin")
 
-    var 
-        print_prob = false
-        k:int32 = 5
-        threshold:float32 = 0.0
-        # output:seq[tuple[first:float32, second:string]]
-        ss = "അമ്മ"
-
-    # ft.predict(ss,k,print_prob,threshold)
-
-    assert ft.args.lrUpdateRate == 100
-    assert ft.args.dim == 16
-    assert ft.args.minn == 2
-    assert ft.args.maxn == 4
-    assert ft.args.bucket == 2000000
-
-    # -0.01967973634600639
+suite "FastText Language Identification Tests (BIN model)":
+  var ft: FastText
+  
+  setup:
+    ft = initFastText()
+    if binModelExists:
+      ft.loadModel(testDir / "lid.176.bin")
+  
+  test "model file exists and loads correctly":
+    if not binModelExists:
+      skip()
+    check binModelExists == true
+  
+  test "model parameters are correct":
+    if not binModelExists:
+      skip()
+    check ft.args.lrUpdateRate == 100
+    check ft.args.dim == 16
+    check ft.args.minn == 2
+    check ft.args.maxn == 4
+    check ft.args.bucket == 2000000
+  
+  test "predict Malayalam language":
+    if not binModelExists:
+      skip()
+    let ss = "അമ്മ"
     let output = ft.predict(ss)
-    assert output[0].second == "__label__ml"
-    assert output[0].first == 0.9998614192008972
+    check output.len > 0
+    check output[0].second == "__label__ml"
+    check output[0].first == 0.9998614192008972

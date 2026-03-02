@@ -6,3 +6,6 @@ nimcache
 *.exe
 *.swp
 .DS_Store
+tests/megatest.nim
+tests/megatest
+outputGotten.txt

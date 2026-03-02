@@ -1,27 +1,27 @@
+
 import os
+import unittest
 import fasttext
-import math
 
-var ft = initFastText()
+const testDir = currentSourcePath().parentDir / "testdata"
 
-ft.loadModel("tests" / "lid.176.ftz")
-
-var 
-    print_prob = false
-    k:int32 = 5
-    threshold:float32 = 0.0
-    # output:seq[tuple[first:float32, second:string]]
-    ss = "അമ്മ"
-
-# ft.predict(ss,k,print_prob,threshold)
-
-assert ft.args.lrUpdateRate == 100
-assert ft.args.dim == 16
-assert ft.args.minn == 2
-assert ft.args.maxn == 4
-assert ft.args.bucket == 2000000
-
-# -0.01967973634600639
-let output = ft.predict(ss)
-assert output[0].second == "__label__ml"
-assert output[0].first == 0.9535570740699768
+suite "FastText Language Identification Tests (FTZ model)":
+  var ft: FastText
+  
+  setup:
+    ft = initFastText()
+    ft.loadModel(testDir / "lid.176.ftz")
+  
+  test "model parameters are correct":
+    check ft.args.lrUpdateRate == 100
+    check ft.args.dim == 16
+    check ft.args.minn == 2
+    check ft.args.maxn == 4
+    check ft.args.bucket == 2000000
+  
+  test "predict Malayalam language":
+    let ss = "അമ്മ"
+    let output = ft.predict(ss)
+    check output.len > 0
+    check output[0].second == "__label__ml"
+    check output[0].first == 0.9535570740699768
