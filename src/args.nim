@@ -34,7 +34,7 @@ func modelToString(mn: model_name): string =
 # proc printQuantizationHelp*(this: var Args) {.stdcall,
 #     importcpp: "printQuantizationHelp", header: headerargs.}
 
-proc save*(self: var Args; a2: var Stream) =
+proc save*(self: Args; a2: Stream) =
   a2.writeData(addr self.dim, sizeof(int32))
   a2.writeData(addr self.ws, sizeof(int32))
   a2.writeData(addr self.epoch, sizeof(int32))
@@ -50,7 +50,7 @@ proc save*(self: var Args; a2: var Stream) =
   a2.writeData(addr self.t, sizeof(float64))
 
 
-proc load*(self: var Args; a2: var Stream) =
+proc load*(self:  Args; a2:  Stream) =
   discard a2.readData(addr self.dim, sizeof(int32))
   discard a2.readData(addr self.ws, sizeof(int32))
   discard a2.readData(addr self.epoch, sizeof(int32))

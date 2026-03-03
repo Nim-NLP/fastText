@@ -16,21 +16,21 @@ const MAX_LINE_SIZE: int32 = 1024
 
 
 
-proc isPruned*(self: var Dictionary): bool =
-  self.pruneidx_size >= 0
+proc isPruned*(self: Dictionary): bool =
+  self.pruneidxsize >= 0
 
-proc load*(self: var Dictionary; a2: var Stream)
+proc load*(self: Dictionary; a2: Stream)
 
-proc newDictionary*(a1: ref Args; stream: var Stream): ref Dictionary =
-  result = new Dictionary
+proc newDictionary*(a1: Args; stream:  Stream): Dictionary =
+  result = Dictionary()
   result.args = a1
   let i: int32 = -1
   result.word2int = newSeq[i](MAX_VOCAB_SIZE)
   result.pruneidxsize = -1
   result.pruneidx = initTable[int32, int32]()
-  result[].load(stream)
+  result.load(stream)
 
-proc initTableDiscard(self: var Dictionary) =
+proc initTableDiscard(self: Dictionary) =
   self.pdiscard.setLen(self.size)
   var
     f: float32
@@ -89,7 +89,7 @@ proc computeSubwords*(self: Dictionary; word: string; ngrams: var seq[int32];
 
 
 
-proc initNgrams(self: var Dictionary) =
+proc initNgrams(self: Dictionary) =
   var
     word: string
 
@@ -110,7 +110,7 @@ proc find*(self: Dictionary; w: string; h: uint32): int32 {.noSideEffect.} =
 proc find*(self: Dictionary; w: string): int32 {.noSideEffect.} =
   return self.find(w, self.hash(w));
 
-proc load*(self: var Dictionary; a2: var Stream) =
+proc load*(self: Dictionary; a2:  Stream) =
   discard a2.readData(addr self.size, sizeof(int32))
   discard a2.readData(addr self.nwords, sizeof(int32))
   discard a2.readData(addr self.nlabels, sizeof(int32))

@@ -71,7 +71,7 @@ type
 proc getWordVector(self: FastText; word: string): Vector =
   ## Computes the word vector by averaging its subword n-gram vectors.
   result = initVector(self.args.dim.int64)
-  let ngrams = self.dict[].getSubwords(word)
+  let ngrams = self.dict.getSubwords(word)
   var count = 0
   if ngrams.len > 0:
     for ngram in ngrams:
@@ -146,7 +146,7 @@ proc segmentText*(self: FastText; text: string): seq[string] =
         let maxWordLen = min(6, n - pos)
         for len in countdown(maxWordLen, 1):
           let candidate = runeSubStr(cjkStr, pos, len)
-          let wordId = self.dict[].getId(candidate)
+          let wordId = self.dict.getId(candidate)
           if wordId >= 0:
             result.add(candidate)
             pos += len
@@ -182,8 +182,8 @@ proc tokenizeLine*(self: FastText; line: string): seq[Token] =
 
     var tok = Token()
     tok.text = token
-    tok.id = self.dict[].getId(token)
-    tok.subwordIds = self.dict[].getSubwords(token)
+    tok.id = self.dict.getId(token)
+    tok.subwordIds = self.dict.getSubwords(token)
     result.add(tok)
 
 iterator tokenizeStream*(self: FastText; input: Stream): seq[Token] =

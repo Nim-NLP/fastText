@@ -9,3 +9,4 @@ nimcache
 tests/megatest.nim
 tests/megatest
 outputGotten.txt
+tests/testdata/fasttext_model.ftz

@@ -42,7 +42,7 @@ proc initLog*(self: ref Model) =
     x = ((float32)float32(i) + float32(1e-5)) / (float32)LOG_TABLE_SIZE;
     self.t_log.idata[i] = ln(x)
 
-proc initModel*(self: ref Model, wi: ptr Matrix; wo: ptr Matrix; args: ref Args; seed: int64) =
+proc initModel*(self: ref Model, wi: ptr Matrix; wo: ptr Matrix; args:  Args; seed: int64) =
   self.hidden = initVector(args.dim)
   self.output = initVector(wo[].size(0))
   self.grad = initVector(args[].dim)

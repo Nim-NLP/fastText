@@ -18,7 +18,7 @@ proc initFastText*(): FastText =
   result = new FastText
   result.quant = false
 
-proc checkModel*(self: var FastText, i: var Stream): bool =
+proc checkModel*(self: FastText, i: Stream): bool =
   var magic: int32
   discard i.readData(magic.addr, sizeof(int32))
   if magic != FASTTEXT_FILEFORMAT_MAGIC_INT32:
@@ -28,13 +28,13 @@ proc checkModel*(self: var FastText, i: var Stream): bool =
     return false
   return true
 
-proc loadModel*(self: var FastText; i: var Stream) =
+proc loadModel*(self: FastText; i: Stream) =
   self.args = newArgs()
-  self.input = initMatrix()
-  self.output = initMatrix()
-  self.qinput = initQMatrix()
-  self.qoutput = initQMatrix()
-  self.args[].load(i)
+  self.input = newMatrix()
+  self.output = newMatrix()
+  self.qinput = newQMatrix()
+  self.qoutput = newQMatrix()
+  self.args.load(i)
 
   if self.version == 11 and self.args.model == model_name.sup:
     self.args.maxn = 0
@@ -47,7 +47,7 @@ proc loadModel*(self: var FastText; i: var Stream) =
     self.qinput.load(i)
   else:
     self.input.load(i)
-  if not quant_input and self.dict[].isPruned():
+  if not quant_input and self.dict.isPruned():
     raise newException(ValueError,
         """Invalid model file.\n
           Please download the updated model from www.fasttext.cc.\n
@@ -66,16 +66,16 @@ proc loadModel*(self: var FastText; i: var Stream) =
   self.model.setQuantizePointer(self.qinput.addr, self.qoutput.addr,
       self.args.qout)
   if self.args.model == model_name.sup:
-    self.model.setTargetCounts(self.dict[].getCounts(entry_type.label))
+    self.model.setTargetCounts(self.dict.getCounts(entry_type.label))
   else:
-    self.model.setTargetCounts(self.dict[].getCounts(entry_type.word))
+    self.model.setTargetCounts(self.dict.getCounts(entry_type.word))
 
-proc loadModel*(self: var FastText; filename: string) =
+proc loadModel*(self: FastText; filename: string) =
   var ifs = openFileStream(filename)
 
-  if not self.checkModel((Stream)ifs):
+  if not self.checkModel(ifs):
     raise newException(ValueError, (filename & " has wrong file format!"))
-  self.loadModel((Stream)ifs)
+  self.loadModel(ifs)
   ifs.close()
 
 proc predict*(self: FastText; i: Stream; k: int32;
@@ -83,7 +83,7 @@ proc predict*(self: FastText; i: Stream; k: int32;
     threshold: float32 = 0.0) =
   var words, labels: seq[int32]
   predictions.setLen(0)
-  discard self.dict[].getLine(i, words, labels)
+  discard self.dict.getLine(i, words, labels)
   predictions.setLen(0)
   if words.len == 0: return
   var hidden = initVector(self.args.dim)
@@ -93,7 +93,7 @@ proc predict*(self: FastText; i: Stream; k: int32;
       output.addr)
   for it in modelPredictions:
     predictions.add( (first: exp(it.first),
-        second: self.dict[].getLabel(it.second)))
+        second: self.dict.getLabel(it.second)))
 
 proc predict*(self: FastText; i: Stream; k: int32; print_prob: bool;
     threshold: float32 = 0.0) =

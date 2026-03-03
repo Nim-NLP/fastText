@@ -20,7 +20,7 @@ type
 
 
 type
-  Args* = object
+  ArgsObj = object
     input*: string
     output*: string
     lr*: float64
@@ -48,7 +48,7 @@ type
     qnorm*: bool
     cutoff*: csize
     dsub*: csize
-
+  Args* = ref ArgsObj
 
 
 type
@@ -61,8 +61,8 @@ type
     entry_type*: entry_type
     subwords*: seq[int32]
 
-  Dictionary* = object
-    args*: ref Args
+  DictionaryObj = object
+    args*: Args
     word2int*: seq[int32]
     words*: seq[entry]
     pdiscard*: seq[float32]
@@ -72,28 +72,29 @@ type
     ntokens*: int64
     pruneidxsize*: int64
     pruneidx*: Table[int32, int32]
-
+  Dictionary* = ref DictionaryObj
 
 
 
 type
-  ProductQuantizer* = object
+  ProductQuantizerObj = object
     dim*, nsubq*, dsub*, lastdsub*: int32
     centroids*: seq[float32]
     rng*: Rand
-
+  ProductQuantizer* = ref ProductQuantizerObj
 type
-  Matrix* = object
+  MatrixObj = object
     idata*: seq[float32]
     m*, n*: int64
-  QMatrix* = object
+  Matrix* = ref MatrixObj
+  QMatrixObj = object
     qnorm*: bool
     m*, n*: int64
     codesize*: int32
     codes*: seq[uint8]
     norm_codes*: seq[uint8]
-    pq*, npq*: ref ProductQuantizer
-
+    pq*, npq*: ProductQuantizer
+  QMatrix* = ref QMatrixObj
 type
   Vector* = object
     idata*: seq[float32]
@@ -112,7 +113,7 @@ type
     wo*: ptr Matrix
     qwi*: ptr QMatrix
     qwo*: ptr QMatrix
-    args*: ref Args
+    args*: Args
     hidden*: Vector
     output*: Vector
     grad*: Vector
@@ -131,8 +132,8 @@ type
 
 type
   FastText* = ref object
-    args*: ref Args
-    dict*: ref Dictionary
+    args*: Args
+    dict*: Dictionary
     input*: Matrix
     output*: Matrix
     qinput*: QMatrix
@@ -156,10 +157,10 @@ proc initVector*(a1: Vector): Vector =
 proc size*(self: Vector): int64 =
   self.idata.len
 
-proc `[]`*(self: var Vector; i: int64): ptr float32 =
+proc `[]`*(self:   Vector; i: int64): ptr float32 =
   result = self.idata[i].addr
 
-proc `[]`*(self: Vector; i: int64): ptr float32 =
+proc `[]`*(self: var Vector; i: int64): ptr float32 =
   result = self.idata[i].unsafeAddr
 
 proc `[]`*(self: ptr float32; key: int64): ptr float32 =
@@ -170,7 +171,7 @@ proc `[]`*(self: ptr uint8; key: int64): ptr uint8 =
   let a: ptr UncheckedArray[uint8] = cast[ptr UncheckedArray[uint8]](self)
   a[key].unsafeaddr
 
-proc get*(self: var Vector; i: int64): float32 =
+proc get*(self:  Vector; i: int64): float32 =
   self.idata[i]
 
 proc at*(self: Matrix; i: int64; j: int64): float32 {.noSideEffect.} =
@@ -185,7 +186,7 @@ proc rows*(self: Matrix): int64 =
 proc cols*(self: Matrix): int64 =
   self.n
 
-proc dotRow*(self: Matrix; vec: var Vector;
+proc dotRow*(self: Matrix; vec: Vector;
   i: int32): float32 {.noSideEffect.} =
   assert i >= 0
   assert i < self.m
@@ -201,14 +202,14 @@ proc getM*(self: QMatrix): int64 =
 proc getN*(self: QMatrix): int64 =
   self.n
 
-proc get_centroids*(self: var ProductQuantizer; m: int32;
+proc get_centroids*(self: ProductQuantizer; m: int32;
   i: uint8): ptr float32 =
   if (m == self.nsubq - 1):
     return self.centroids[m * ksub * self.dsub + i.int32 *
         self.lastdsub].addr
   return self.centroids[(m * ksub + i.int32) * self.dsub].addr
 
-proc mulcode*(self: var ProductQuantizer; x: var Vector; codes: ptr uint8;
+proc mulcode*(self: ProductQuantizer; x: var Vector; codes: ptr uint8;
   t: int32; alpha: float32): float32 =
   var d = self.dsub
   let code = codes[self.nsubq * t]
@@ -221,7 +222,7 @@ proc mulcode*(self: var ProductQuantizer; x: var Vector; codes: ptr uint8;
       result += x[m * self.dsub + n][] * c[n][]
   result = result * alpha
 
-proc addcode*(self: var ProductQuantizer; x: var Vector; codes: ptr uint8;
+proc addcode*(self: ProductQuantizer; x: var Vector; codes: ptr uint8;
   t: int32; alpha: float32) =
   var d = self.dsub
   let code = codes[self.nsubq * t]
@@ -233,43 +234,43 @@ proc addcode*(self: var ProductQuantizer; x: var Vector; codes: ptr uint8;
     for n in 0..<d:
       x[m * self.dsub + n][] += alpha * c[n][]
 
-proc addToVector*(self: var QMatrix; x: var Vector; t: int32) =
+proc addToVector*(self: QMatrix; x: var Vector; t: int32) =
   var norm: float32 = 1
   if self.qnorm:
-    norm = self.npq[].get_centroids(0'i32, self.norm_codes[t])[]
-  self.pq[].addcode(x, self.codes[0].addr, t, norm)
+    norm = self.npq.get_centroids(0'i32, self.norm_codes[t])[]
+  self.pq.addcode(x, self.codes[0].addr, t, norm)
 
-proc dotRow*(self: var QMatrix; vec: var Vector; i: int64): float32 =
+proc dotRow*(self: QMatrix; vec: var Vector; i: int64): float32 =
   assert(i >= 0);
   assert(i < self.m)
   assert(vec.size() == self.n)
   var norm: float32 = 1
   if self.qnorm:
-    norm = self.npq[].get_centroids(0'i32, self.norm_codes[i])[]
-  self.pq[].mulcode(vec, self.codes[0].addr, i.int32, norm)
+    norm = self.npq.get_centroids(0'i32, self.norm_codes[i])[]
+  self.pq.mulcode(vec, self.codes[0].addr, i.int32, norm)
 
-proc l2NormRow*(self: var Matrix; i: int64): float32 {.noSideEffect.} =
+proc l2NormRow*(self: Matrix; i: int64): float32 {.noSideEffect.} =
   var norm: float32 = 0.0
   for j in 0..<self.n:
-    norm += self.at(i, j)[]
+    norm += self.at(i, j)
 
   if norm == NaN:
     raise newException(ValueError, "Encountered NaN.")
   sqrt(norm)
 
-proc l2NormRow*(self: var Matrix; norms: var Vector) {.noSideEffect.} =
+proc l2NormRow*(self: Matrix; norms: var Vector) {.noSideEffect.} =
   assert norms.size == self.m
   for i in 0..<self.m:
     norms[i][] = self.l2NormRow(i)
 
-proc addRow*(self: var Matrix; vec: var Vector; i: int64; a: float32) =
+proc addRow*(self: Matrix; vec: var Vector; i: int64; a: float32) =
   assert i >= 0
   assert i < self.m
   assert vec.size == self.n
   for j in 0..<self.n:
     self.idata[ (i * self.n + j).int32] += a * vec.get(j)
 
-proc multiplyRow*(self: var Matrix; nums: var Vector; ib: int64 = 0;
+proc multiplyRow*(self: var Matrix; nums: Vector; ib: int64 = 0;
   ie: int64 = -1) =
   var iee = ie
   if ie == -1:
@@ -284,7 +285,7 @@ proc multiplyRow*(self: var Matrix; nums: var Vector; ib: int64 = 0;
         self.at(i, j)[] *= n
     inc i
 
-proc divideRow*(self: var Matrix; denoms: var Vector; ib: int64 = 0;
+proc divideRow*(self: var Matrix; denoms: Vector; ib: int64 = 0;
   ie: int64 = -1) =
   var iee = ie
   if ie == -1:
@@ -299,7 +300,7 @@ proc divideRow*(self: var Matrix; denoms: var Vector; ib: int64 = 0;
         self.at(i, j)[] /= n
     inc i
 
-proc newArgs*(): ref Args =
+proc newArgs*():  Args =
   result = new Args
   result.lr = 0.05
   result.dim = 100

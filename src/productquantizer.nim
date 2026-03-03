@@ -10,11 +10,11 @@ proc distL2(x: ptr float32; y: ptr float32; d: int32): float32 =
   for i in 0..<d:
     result += ((x[i][] - y[i][]) ^ 2)
 
-proc newProductQuantizer*(): ref ProductQuantizer =
+proc newProductQuantizer*(): ProductQuantizer =
   result = new ProductQuantizer
   result.rng = initRand(seed)
 
-proc newProductQuantizer*(dim: int32; dsub: int32): ref ProductQuantizer =
+proc newProductQuantizer*(dim: int32; dsub: int32): ProductQuantizer =
   result = new ProductQuantizer
   result.dim = dim
   result.nsubq = result.dim div result.dsub
@@ -91,7 +91,7 @@ proc MStep*(self: ProductQuantizer; x0: ptr float32; centroids: ptr float32;
       nelts[k] = nelts[m] div 2
       nelts[m] -= nelts[k]
 
-proc kmeans(self: var ProductQuantizer; x: ptr float32; c: ptr float32;
+proc kmeans(self: ProductQuantizer; x: ptr float32; c: ptr float32;
         n: int32; d: int32) =
   var perm = newSeq[int32](n)
   var i = 0'i32
@@ -109,7 +109,7 @@ proc kmeans(self: var ProductQuantizer; x: ptr float32; c: ptr float32;
     self.MStep(x, c, codes[0].addr, d, n)
 
 
-proc train*(self: var ProductQuantizer; n: int32; norms: ptr float32) =
+proc train*(self: ProductQuantizer; n: int32; norms: ptr float32) =
   if n < ksub:
     raise newException(ValueError,
             "Matrix too small for quantization, must have at least " &
@@ -131,7 +131,7 @@ proc train*(self: var ProductQuantizer; n: int32; norms: ptr float32) =
     self.kmeans(xslice.idata[0].addr, self.get_centroids(m.int32, 0), np,
             d)
 
-proc compute_code*(self: var ProductQuantizer; x: ptr float32;
+proc compute_code*(self: ProductQuantizer; x: ptr float32;
         code: ptr uint8) {.
     noSideEffect.} =
   var d = self.dsub
@@ -142,7 +142,7 @@ proc compute_code*(self: var ProductQuantizer; x: ptr float32;
     discard self.assign_centroid(x[m * self.dsub],
             self.get_centroids(m.int32, 0), code[m], d)
 
-proc compute_codes*(self: var ProductQuantizer; x: ptr float32;
+proc compute_codes*(self: ProductQuantizer; x: ptr float32;
         codes: ptr uint8; n: int32) {.noSideEffect.} =
   for i in 0..<n:
     self.compute_code(x[i*self.dim], codes[i*self.nsubq])
@@ -150,7 +150,7 @@ proc compute_codes*(self: var ProductQuantizer; x: ptr float32;
 # proc save*(this: var ProductQuantizer; a2: var ostream) {.stdcall, importcpp: "save",
 #     header: headerproductquantizer.}
 
-proc load*(self: var ProductQuantizer; a2: var Stream) =
+proc load*(self:  ProductQuantizer; a2:  Stream) =
   discard a2.readData(self.dim.addr, sizeof(self.dim))
   discard a2.readData(self.nsubq.addr, sizeof(self.nsubq))
   discard a2.readData(self.dsub.addr, sizeof(self.dsub))
