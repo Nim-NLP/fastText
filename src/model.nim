@@ -43,9 +43,9 @@ proc initLog*(self: ref Model) =
     self.t_log.idata[i] = ln(x)
 
 proc initModel*(self: ref Model, wi: ptr Matrix; wo: ptr Matrix; args:  Args; seed: int64) =
-  self.hidden = initVector(args.dim)
-  self.output = initVector(wo[].size(0))
-  self.grad = initVector(args[].dim)
+  self.hidden = newVector(args.dim)
+  self.output = newVector(wo[].size(0))
+  self.grad = newVector(args[].dim)
   self.quant = false
   self.rng = initRand(seed)
   self.wi = wi

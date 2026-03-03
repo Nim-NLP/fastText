@@ -148,10 +148,10 @@ proc size*(self: Matrix; dim: int64): int64 =
 
 
 
-proc initVector*(a1: int64): Vector =
+proc newVector*(a1: int64): Vector =
   result.idata = newSeq[float32](a1)
 
-proc initVector*(a1: Vector): Vector =
+proc newVector*(a1: Vector): Vector =
   result = a1
 
 proc size*(self: Vector): int64 =

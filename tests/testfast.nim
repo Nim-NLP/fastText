@@ -9,7 +9,7 @@ suite "FastText Language Identification Tests (FTZ model)":
   var ft: FastText
   
   setup:
-    ft = initFastText()
+    ft = newFastText()
     ft.loadModel(testDir / "lid.176.ftz")
   
   test "model parameters are correct":

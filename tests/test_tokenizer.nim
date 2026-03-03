@@ -16,7 +16,7 @@ suite "FastText Tokenizer Tests":
 
   setup:
     if modelExists:
-      ft = initFastText()
+      ft = newFastText()
       ft.loadModel(modelPath)
 
   teardown:

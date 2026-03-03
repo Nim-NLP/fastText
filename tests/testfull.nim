@@ -11,7 +11,7 @@ suite "FastText Language Identification Tests (BIN model)":
   var ft: FastText
   
   setup:
-    ft = initFastText()
+    ft = newFastText()
     if binModelExists:
       ft.loadModel(testDir / "lid.176.bin")
   

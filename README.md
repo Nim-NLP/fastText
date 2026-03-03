@@ -21,7 +21,7 @@ This Nim port includes a **built-in tokenizer** that uses FastText's learned wor
 ```nim
 import fasttext
 
-var ft = initFastText()
+var ft = newFastText()
 ft.loadModel("path/to/model.ftz")
 
 # Tokenize text

@@ -119,7 +119,7 @@ proc train*(self: ProductQuantizer; n: int32; norms: ptr float32) =
     perm[i] = i
   var d = self.dsub
   var np = min(n, max_points)
-  var xslice = initVector(np * self.dsub)
+  var xslice = newVector(np * self.dsub)
   var i: int32
   for m in 0..<self.nsubq:
     if m == self.nsubq - 1:

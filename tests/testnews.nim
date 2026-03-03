@@ -8,7 +8,7 @@ suite "FastText News Classification Tests":
   var ft: FastText
   
   setup:
-    ft = initFastText()
+    ft = newFastText()
     ft.loadModel(testDir / "sogou_news.ftz")
   
   test "model parameters are correct":

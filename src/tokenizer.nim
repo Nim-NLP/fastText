@@ -70,7 +70,7 @@ type
 
 proc getWordVector(self: FastText; word: string): Vector =
   ## Computes the word vector by averaging its subword n-gram vectors.
-  result = initVector(self.args.dim.int64)
+  result = newVector(self.args.dim.int64)
   let ngrams = self.dict.getSubwords(word)
   var count = 0
   if ngrams.len > 0:

@@ -35,7 +35,7 @@ proc quantize*(self:  QMatrix; matrix: Matrix) =
   var temp = matrix
   var norms: Vector
   if self.qnorm:
-    norms = initVector(temp.size(0))
+    norms = newVector(temp.size(0))
     temp.l2NormRow(norms)
     temp.divideRow(norms)
     self.quantizeNorm(norms)

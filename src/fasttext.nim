@@ -14,7 +14,7 @@ const FASTTEXT_VERSION = 12'i32
 const FASTTEXT_FILEFORMAT_MAGIC_INT32 = 793712314'i32
 
 
-proc initFastText*(): FastText =
+proc newFastText*(): FastText =
   result = new FastText
   result.quant = false
 
@@ -86,8 +86,8 @@ proc predict*(self: FastText; i: Stream; k: int32;
   discard self.dict.getLine(i, words, labels)
   predictions.setLen(0)
   if words.len == 0: return
-  var hidden = initVector(self.args.dim)
-  var output = initVector(self.dict.nlabels)
+  var hidden = newVector(self.args.dim)
+  var output = newVector(self.dict.nlabels)
   var modelPredictions: seq[tuple[first: float32, second: int32]]
   self.model.predict(words, k, threshold, modelPredictions, hidden.addr,
       output.addr)
