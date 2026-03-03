@@ -78,7 +78,7 @@ proc loadModel*(self: var FastText; filename: string) =
   self.loadModel((Stream)ifs)
   ifs.close()
 
-proc predict*(self: var FastText; i: Stream; k: int32;
+proc predict*(self: FastText; i: Stream; k: int32;
     predictions: var seq[tuple[first: float32, second: string]];
     threshold: float32 = 0.0) =
   var words, labels: seq[int32]
@@ -95,7 +95,7 @@ proc predict*(self: var FastText; i: Stream; k: int32;
     predictions.add( (first: exp(it.first),
         second: self.dict[].getLabel(it.second)))
 
-proc predict*(self: var FastText; i: Stream; k: int32; print_prob: bool;
+proc predict*(self: FastText; i: Stream; k: int32; print_prob: bool;
     threshold: float32 = 0.0) =
   var line: string
   var predictions: seq[tuple[first: float32, second: string]]
@@ -115,7 +115,7 @@ proc predict*(self: var FastText; i: Stream; k: int32; print_prob: bool;
   i.close()
 
 # fasttext_pybind.cc interface
-proc predict*(self: var FastText; text: string; k: int32 = 1;
+proc predict*(self: FastText; text: string; k: int32 = 1;
     threshold: float32 = 0.0): seq[tuple[first: float32, second: string]] =
   var stream = (Stream)newStringStream(text)
   self.predict(stream, k, result, threshold)
