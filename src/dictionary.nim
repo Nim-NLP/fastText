@@ -19,7 +19,7 @@ const MAX_LINE_SIZE: int32 = 1024
 proc isPruned*(self: Dictionary): bool =
   self.pruneidxsize >= 0
 
-proc load*(self: Dictionary; a2: Stream)
+proc load*(self: Dictionary; a2: Stream) {.gcsafe.}
 
 proc newDictionary*(a1: Args; stream:  Stream): Dictionary =
   result = Dictionary()
@@ -30,7 +30,7 @@ proc newDictionary*(a1: Args; stream:  Stream): Dictionary =
   result.pruneidx = initTable[int32, int32]()
   result.load(stream)
 
-proc initTableDiscard(self: Dictionary) =
+proc initTableDiscard(self: Dictionary) {.gcsafe.} =
   self.pdiscard.setLen(self.size)
   var
     f: float32
@@ -110,7 +110,7 @@ proc find*(self: Dictionary; w: string; h: uint32): int32 {.noSideEffect.} =
 proc find*(self: Dictionary; w: string): int32 {.noSideEffect.} =
   return self.find(w, self.hash(w));
 
-proc load*(self: Dictionary; a2:  Stream) =
+proc load*(self: Dictionary; a2:  Stream) {.gcsafe.} =
   discard a2.readData(addr self.size, sizeof(int32))
   discard a2.readData(addr self.nwords, sizeof(int32))
   discard a2.readData(addr self.nlabels, sizeof(int32))

@@ -28,7 +28,7 @@ proc checkModel*(self: FastText, i: Stream): bool =
     return false
   return true
 
-proc loadModel*(self: FastText; i: Stream) =
+proc loadModel*(self: FastText; i: Stream) {.gcsafe.} =
   self.args = newArgs()
   self.input = newMatrix()
   self.output = newMatrix()

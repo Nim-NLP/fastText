@@ -4,8 +4,8 @@ import ./types
 import streams
 
 
-proc quantize*(self:  QMatrix; matrix: Matrix)
-proc quantizeNorm*(self:  QMatrix; norms:  Vector)
+proc quantize*(self:  QMatrix; matrix: Matrix) {.gcsafe.}
+proc quantizeNorm*(self:  QMatrix; norms:  Vector) {.gcsafe.}
 
 proc newQMatrix*(): QMatrix =
   new(result)
@@ -22,14 +22,14 @@ proc newQMatrix*(mat:  Matrix; dsub: int32; qnorm: bool): QMatrix =
     result.npq = newProductQuantizer(1'i32, 1'i32)
   result.quantize(mat)
 
-proc quantizeNorm*(self:  QMatrix; norms:  Vector) =
+proc quantizeNorm*(self:  QMatrix; norms:  Vector) {.gcsafe.} =
   assert self.qnorm == true
   assert norms.size() == self.m
   let dataptr = norms.idata[0].addr
   self.npq.train(self.m.int32, dataptr)
   self.npq.compute_codes(dataptr, self.norm_codes[0].addr, self.m.int32);
 
-proc quantize*(self:  QMatrix; matrix: Matrix) =
+proc quantize*(self:  QMatrix; matrix: Matrix) {.gcsafe.} =
   assert(self.m == matrix.size(0))
   assert(self.n == matrix.size(1))
   var temp = matrix
@@ -43,7 +43,7 @@ proc quantize*(self:  QMatrix; matrix: Matrix) =
   self.pq.train(self.m.int32, dataptr)
   self.pq.compute_codes(dataptr, self.codes[0].addr, self.m.int32)
 
-proc load*(self:  QMatrix; a2:  Stream) =
+proc load*(self:  QMatrix; a2:  Stream) {.gcsafe.} =
   discard a2.readData(addr self.qnorm, sizeof(bool))
   discard a2.readData(addr self.m, sizeof(int64))
   discard a2.readData(addr self.n, sizeof(int64))
